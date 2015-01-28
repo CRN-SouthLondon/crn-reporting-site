@@ -604,6 +604,7 @@ li.report-picker-button.active:hover > a {
   border-color: #bbb;
 }
 
+.dashboard-metric-caption,
 .chart-caption {
   text-align: center;
   font-size: 10pt;

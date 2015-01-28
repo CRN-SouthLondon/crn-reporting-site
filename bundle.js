@@ -37,12 +37,11 @@ window.onload = function () {
     });
     var reports = [
         { title: 'Dashboard', component: require('./dashboard-view') },
-        { title: 'Recruitment Performance', component: require('./recruitment-view') },
-        { title: 'Time & Target', component: todo },
-        { title: 'Specialty View', component: todo }
+        { title: 'Recruitment', component: require('./recruitment-view') },
+        { title: 'Time & Target', component: require('./time-target-view') },
     ];
     function debugReport() {
-        var query = window.location.search.replace(/^\?/, '');
+        var query = decodeURIComponent(window.location.search.replace(/^\?/, ''));
         return _.findWhere(reports, function (report) { return report.title === query; });
     }
     if (debugReport()) {
@@ -63,7 +62,7 @@ window.onload = function () {
 };
 
 
-},{"../lib/reports/config":6,"../lib/ui/chart":9,"../lib/ui/input/button":11,"../lib/ui/input/button-group":10,"../lib/ui/input/check-box":12,"../lib/ui/input/dropdown":13,"../lib/ui/input/field":14,"../lib/ui/rag-proportion-indicator":16,"../lib/ui/rag-value-indicator":17,"../lib/ui/report-picker":18,"../lib/ui/table":19,"./dashboard-view":20,"./recruitment-view":22,"browser-request":23,"lodash":27,"ractive":29}],2:[function(require,module,exports){
+},{"../lib/reports/config":6,"../lib/ui/chart":10,"../lib/ui/input/button":12,"../lib/ui/input/button-group":11,"../lib/ui/input/check-box":13,"../lib/ui/input/dropdown":14,"../lib/ui/input/field":15,"../lib/ui/rag-proportion-indicator":17,"../lib/ui/rag-value-indicator":18,"../lib/ui/report-picker":19,"../lib/ui/table":20,"./dashboard-view":21,"./recruitment-view":23,"./time-target-view":24,"browser-request":25,"lodash":29,"ractive":31}],2:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var _ = require('lodash');
 var moment = require('moment');
@@ -77,7 +76,7 @@ var ColumnType = exports.ColumnType;
 // Operations:
 function select(query) {
     var httpClient = query.from.http;
-    var url = encodeQueryURL(_.keys(query.columns).sort(), query.from.tableID, query.from.apiKey, query.where ? query.where.sql() : null, query.groupBy ? query.groupBy.sort() : null);
+    var url = encodeQueryURL(_.map(_.keys(query.columns), encodeColumn).sort(), query.from.tableID, query.from.apiKey, query.where ? query.where.sql() : null, query.groupBy ? _.map(query.groupBy.sort(), encodeColumn) : null);
     var request = makeRequest(httpClient, url).then(JSON.parse).then(function (response) { return _.map(response.rows, function (row) { return convertResponseRow(row, response.columns, query.columns); }); });
     return function (x) { return request; };
 }
@@ -85,7 +84,7 @@ exports.select = select;
 function selectSum(query) {
     var sumColumnQueries = _.map(query.columns, function (x) { return "SUM(" + x + ") AS " + x; });
     var httpClient = query.from.http;
-    var url = encodeQueryURL(sumColumnQueries.concat(query.groupBy ? _.keys(query.groupBy).sort() : []), query.from.tableID, query.from.apiKey, query.where ? query.where.sql() : null, query.groupBy ? _.keys(query.groupBy).sort() : null);
+    var url = encodeQueryURL(sumColumnQueries.concat(query.groupBy ? _.map(_.keys(query.groupBy).sort(), encodeColumn) : []), query.from.tableID, query.from.apiKey, query.where ? query.where.sql() : null, query.groupBy ? _.map(_.keys(query.groupBy).sort(), encodeColumn) : null);
     var responseTypes = _.clone(query.groupBy);
     _.each(query.columns, function (c) { return responseTypes[c] = 1 /* number */; });
     var request = makeRequest(httpClient, url).then(JSON.parse).then(function (response) { return _.map(response.rows, function (row) { return convertResponseRow(row, response.columns, responseTypes); }); });
@@ -119,34 +118,38 @@ function all(conditions) {
 }
 exports.all = all;
 function equals(column, value) {
-    return filter(r_.equals(column, value), column, " = ", literal(value));
+    return filter(r_.equals(column, value), encodeColumn(column), " = ", literal(value));
 }
 exports.equals = equals;
 function notEqual(column, value) {
-    return filter(r_.notEqual(column, value), column, " != ", literal(value));
+    return filter(r_.notEqual(column, value), encodeColumn(column), " != ", literal(value));
 }
 exports.notEqual = notEqual;
 function oneOf(column, values) {
     var formattedValues = _.map(values, function (v) { return literal(v); });
-    return filter(r_.oneOf(column, values), column, " IN (", formattedValues.join(', '), ")");
+    return filter(r_.oneOf(column, values), encodeColumn(column), " IN (", formattedValues.join(', '), ")");
 }
 exports.oneOf = oneOf;
 function greaterThan(column, value) {
-    return filter(r_.greaterThan(column, value), column, " > ", literal(value));
+    return filter(r_.greaterThan(column, value), encodeColumn(column), " > ", literal(value));
 }
 exports.greaterThan = greaterThan;
 function greaterThanOrEqual(column, value) {
-    return filter(r_.greaterThanOrEqual(column, value), column, " >= ", literal(value));
+    return filter(r_.greaterThanOrEqual(column, value), encodeColumn(column), " >= ", literal(value));
 }
 exports.greaterThanOrEqual = greaterThanOrEqual;
 function lessThan(column, value) {
-    return filter(r_.lessThan(column, value), column, " < ", literal(value));
+    return filter(r_.lessThan(column, value), encodeColumn(column), " < ", literal(value));
 }
 exports.lessThan = lessThan;
 function lessThanOrEqual(column, value) {
-    return filter(r_.lessThanOrEqual(column, value), column, " <= ", literal(value));
+    return filter(r_.lessThanOrEqual(column, value), encodeColumn(column), " <= ", literal(value));
 }
 exports.lessThanOrEqual = lessThanOrEqual;
+function like(column, val) {
+    return filter(function (x) { return x[column].match(val); }, encodeColumn(column), " CONTAINS IGNORING CASE ", literal(val));
+}
+exports.like = like;
 function makeRequest(client, url, body) {
     if (body === void 0) { body = null; }
     return new Promise(function (resolve, reject) {
@@ -160,9 +163,9 @@ function makeRequest(client, url, body) {
     });
 }
 // Encoding:
-function convertResponseField(columnName, t, value) {
+function convertResponseField(columnName, t, value, row) {
     function typeMismatch() {
-        throw new Error("Mismatched column type in " + columnName + ". Expected " + t + ", but received " + value);
+        throw new Error("Mismatched column type in " + columnName + ". Expected " + t + ", but received " + value + ". Row: " + row);
     }
     var result;
     switch (t) {
@@ -173,7 +176,7 @@ function convertResponseField(columnName, t, value) {
         case 1 /* number */:
             {
                 result = parseFloat(value);
-                if (_.isNaN(result)) {
+                if (_.isNaN(result) && value !== 'NaN') {
                     typeMismatch();
                 }
                 else {
@@ -182,6 +185,8 @@ function convertResponseField(columnName, t, value) {
             }
         case 2 /* date */:
             {
+                if (value === '')
+                    return null;
                 result = moment(value, "DD/MM/YYYY HH:mm:ss");
                 if (result.isValid()) {
                     return result.toDate();
@@ -197,7 +202,7 @@ function convertResponseField(columnName, t, value) {
 function convertResponseRow(row, columnOrdering, columnTypes) {
     var converted = {};
     _.each(columnOrdering, function (col, i) {
-        converted[col] = convertResponseField(col, columnTypes[col], row[i]);
+        converted[col] = convertResponseField(col, columnTypes[col], row[i], row);
     });
     return converted;
 }
@@ -230,9 +235,12 @@ function literal(val) {
     }
 }
 exports.literal = literal;
+function encodeColumn(col) {
+    return "'" + col + "'";
+}
 
 
-},{"../process-rows/rows":4,"lodash":27,"moment":28}],3:[function(require,module,exports){
+},{"../process-rows/rows":4,"lodash":29,"moment":30}],3:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var _ = require('lodash');
 var Row = require('./rows');
@@ -313,7 +321,7 @@ var timeseries;
 })(timeseries = exports.timeseries || (exports.timeseries = {}));
 
 
-},{"./rows":4,"lodash":27}],4:[function(require,module,exports){
+},{"./rows":4,"lodash":29}],4:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var es6_promise = require('es6-promise');
 var _ = require('lodash');
@@ -456,6 +464,14 @@ function switchCase(value) {
     }
 }
 exports.switchCase = switchCase;
+function switchColumn(col, handlers) {
+    return sequence(transformAll(function (rows) {
+        var grouped = _.groupBy(rows, function (row) { return row[col]; });
+        var next = _.map(grouped, function (g, key) { return handlers[key](Promise.resolve(g)); });
+        return Promise.all(next);
+    }), transformAll(_.flatten));
+}
+exports.switchColumn = switchColumn;
 // Summarize
 function summarize(options) {
     var aggregators = options.where;
@@ -567,6 +583,10 @@ function countDistinct(column) {
     return _.compose(_.size, reduceColumn(column, {}, incrementCount));
 }
 exports.countDistinct = countDistinct;
+function count(column) {
+    return function (rows) { return rows.length; };
+}
+exports.count = count;
 // Row Queries
 function value(val) {
     return function (row) { return val; };
@@ -660,7 +680,7 @@ function join(options) {
 exports.join = join;
 
 
-},{"es6-promise":26,"lodash":27}],5:[function(require,module,exports){
+},{"es6-promise":28,"lodash":29}],5:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var Rows = require('../process-rows/rows');
 var moment = require('moment');
@@ -675,6 +695,26 @@ var YearType = exports.YearType;
     Granularity[Granularity["monthly"] = 1] = "monthly";
 })(exports.Granularity || (exports.Granularity = {}));
 var Granularity = exports.Granularity;
+function formatYearType(type) {
+    switch (type) {
+        case 0 /* calendar */:
+            return "calendar";
+        case 1 /* financial */:
+            return "financial";
+        case 2 /* recruitment */:
+            return "recruitment";
+    }
+}
+exports.formatYearType = formatYearType;
+function formatGranularity(gran) {
+    switch (gran) {
+        case 0 /* annual */:
+            return "Annual";
+        case 1 /* monthly */:
+            return "Monthly";
+    }
+}
+exports.formatGranularity = formatGranularity;
 function dateRange(options) {
     var dates = [];
     var thisYear = groupByYearType(new Date(), options.yearType).getFullYear();
@@ -745,7 +785,7 @@ function groupByMonth(date) {
 exports.groupByMonth = groupByMonth;
 
 
-},{"../process-rows/rows":4,"moment":28}],6:[function(require,module,exports){
+},{"../process-rows/rows":4,"moment":30}],6:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var Fusion = require('../fusion/fusion');
 exports.studyBandWeightings = {
@@ -843,7 +883,7 @@ function performanceGraphs(opts) {
         banded: opts.queryOptions.banded,
         weighted: opts.queryOptions.weighted,
         formatter: calendar.periodFormatter(opts.queryOptions)
-    })); }), Rows.log('charts'), Rows.transformAll(function (rows) {
+    })); }), Rows.transformAll(function (rows) {
         var allValues = _.map(rows, function (r) { return _.flatten(r.series); });
         var max = _.max(allValues);
         return _.map(rows, function (row) {
@@ -855,7 +895,13 @@ function performanceGraphs(opts) {
 }
 exports.performanceGraphs = performanceGraphs;
 function performanceTable(opts) {
-    return Rows.sequence(recruitmentData(opts.query), activityReport(opts.queryOptions));
+    return Rows.sequence(recruitmentData(opts.query), activityReport(opts.queryOptions), Rows.dropColumns('Banding'), Rows.summarize({
+        over: ['Period'],
+        where: {
+            Recruitment: Rows.sum('Recruitment'),
+            WeightedActivity: Rows.sum('WeightedActivity')
+        }
+    }));
 }
 exports.performanceTable = performanceTable;
 /**
@@ -884,7 +930,7 @@ function columnOptions(opts) {
     Analysis:
 */
 function activityReport(options) {
-    var dates = calendar.dateRange({ yearsBack: 3, yearType: options.yearType });
+    var dates = calendar.dateRange({ yearsBack: options.granularity === 0 /* annual */ ? 3 : 1, yearType: options.yearType });
     return Rows.sequence(Rows.fill({
         permutations: {
             Banding: ['Interventional/Both', 'Observational', 'Large'],
@@ -945,7 +991,143 @@ function presentChart(options) {
 exports.presentChart = presentChart;
 
 
-},{"../fusion/fusion":2,"../process-rows/chart":3,"../process-rows/rows":4,"./calendar":5,"./config":6,"lodash":27}],9:[function(require,module,exports){
+},{"../fusion/fusion":2,"../process-rows/chart":3,"../process-rows/rows":4,"./calendar":5,"./config":6,"lodash":29}],9:[function(require,module,exports){
+/// <reference path='../references.d.ts' />
+var Rows = require('../process-rows/rows');
+var Fusion = require('../fusion/fusion');
+var moment = require('moment');
+var _ = require('lodash');
+var config = require('./config');
+var calendar = require('./calendar');
+function rag(opts) {
+    return function (row) {
+        var val = row[opts.field];
+        if (_.isNull(val) || _.isUndefined(val))
+            return null;
+        if (val >= opts.bandings.green)
+            return 'green';
+        if (val >= opts.bandings.amber)
+            return 'amber';
+        return 'red';
+    };
+}
+function timeTargetReportCommercialClosed(opts) {
+    var periodStartDate = calendar.groupByYearType(opts.reportingPeriod, 1 /* financial */);
+    return Rows.sequence(timeTargetData({
+        drillDownQuery: opts.drillDownQuery,
+        inclusionFilters: [
+            Fusion.greaterThanOrEqual('PortfolioQualificationDate', new Date('2010-4-1')),
+            Fusion.greaterThanOrEqual('Local Start Date', new Date('2010-4-1')),
+            Fusion.greaterThanOrEqual('Actual Study End Date', periodStartDate),
+            Fusion.equals('CommercialStudy', 'Commercial'),
+            Fusion.oneOf('ActiveStatus', ['Closed - follow-up complete', 'Closed - in follow-up'])
+        ]
+    }), Rows.setColumn('RAG', function (row) {
+        if (_.isNull(row.PercentTarget) || _.isNull(row.PercentTime))
+            return null;
+        if (row.PercentTime <= 1.0 && row.PercentTarget >= 1.0)
+            return 'green';
+        else
+            return 'red';
+    }));
+}
+exports.timeTargetReportCommercialClosed = timeTargetReportCommercialClosed;
+function timeTargetReportNoncommercialClosed(opts) {
+    var periodStartDate = calendar.groupByYearType(opts.reportingPeriod, 2 /* recruitment */);
+    return Rows.sequence(timeTargetData({
+        drillDownQuery: opts.drillDownQuery,
+        inclusionFilters: [
+            Fusion.greaterThan('PortfolioQualificationDate', new Date('2010-4-1')),
+            Fusion.greaterThanOrEqual('Local Start Date', new Date('2010-4-1')),
+            Fusion.greaterThanOrEqual('Actual Study End Date', periodStartDate),
+            Fusion.equals('ShouldUploadRecruitmentData', 'Yes'),
+            Fusion.equals('CommercialStudy', 'Non-Commercial'),
+            Fusion.oneOf('ActiveStatus', ['Closed - follow-up complete', 'Closed - in follow-up'])
+        ]
+    }), Rows.setColumn('RAG', function (row) {
+        if (_.isNull(row.PercentTarget) || _.isNull(row.PercentTime))
+            return null;
+        if (row.PercentTime <= 1.0 && row.PercentTarget >= 1.0)
+            return 'green';
+        else
+            return 'red';
+    }));
+}
+exports.timeTargetReportNoncommercialClosed = timeTargetReportNoncommercialClosed;
+function timeTargetReport(opts) {
+    return Rows.union([
+        timeTargetReportNoncommercialClosed(opts),
+        timeTargetReportCommercialClosed(opts)
+    ]);
+}
+exports.timeTargetReport = timeTargetReport;
+function timeTargetData(opts) {
+    var combinedFilter = Fusion.all(opts.drillDownQuery.concat(opts.inclusionFilters));
+    return Rows.sequence(Fusion.select({
+        columns: {
+            StudyTitle: 0 /* string */,
+            MainReportingDivision: 0 /* string */,
+            MainSpecialty: 0 /* string */,
+            LocalStudyID: 0 /* string */,
+            GroupedTrustName: 0 /* string */,
+            'Local Start Date': 2 /* date */,
+            'Expected Study End Date': 2 /* date */,
+            'Actual Study End Date': 2 /* date */,
+            'Recruitment Target': 1 /* number */
+        },
+        from: config.studyTable,
+        where: combinedFilter
+    }), Rows.setColumns({
+        ActualStudyEndDate: Rows.field('Actual Study End Date'),
+        LocalStartDate: Rows.field('Local Start Date'),
+        ExpectedStudyEndDate: Rows.field('Expected Study End Date'),
+        RecruitmentTarget: Rows.field('Recruitment Target')
+    }), Rows.dropColumns('Actual Study End Date', 'Local Start Date', 'Expected Study End Date', 'Recruitment Target'), Rows.join({
+        with: Fusion.selectSum({
+            columns: ['Recruitment'],
+            from: config.recruitmentTable,
+            where: combinedFilter,
+            groupBy: { LocalStudyID: 0 /* string */ }
+        }),
+        as: 'Recruitment',
+        on: { LocalStudyID: 'LocalStudyID' }
+    }), Rows.setColumn('Recruitment', function (row) { return _.reduce(row.Recruitment, function (total, row) { return total + row.Recruitment; }, 0); }), Rows.setColumn('IncompleteInfo', function (row) { return (_.isNaN(row.RecruitmentTarget) || _.isNull(row.ActualStudyEndDate) || _.isNull(row.ExpectedStudyEndDate)) ? true : false; }), Rows.switchColumn('IncompleteInfo', {
+        true: Rows.setColumns({
+            ExpectedDuration: Rows.value(null),
+            ActualDuration: Rows.value(null),
+            PercentTime: Rows.value(null),
+            PercentTarget: Rows.value(null)
+        }),
+        false: Rows.sequence(Rows.setColumns({
+            ExpectedDuration: function (row) { return moment(row.ExpectedStudyEndDate).diff(moment(row.LocalStartDate), 'days'); },
+            ActualDuration: function (row) { return moment(row.ActualStudyEndDate).diff(moment(row.LocalStartDate), 'days'); }
+        }), Rows.setColumns({
+            PercentTime: function (row) { return row.ActualDuration / row.ExpectedDuration; },
+            PercentTarget: function (row) { return row.Recruitment / row.RecruitmentTarget; }
+        }))
+    }));
+}
+function summarizeRAG() {
+    return Rows.transformAll(function (rows) {
+        var grouped = _.groupBy(rows, 'RAG');
+        function get(key) {
+            if (grouped[key])
+                return grouped[key].length;
+            else
+                return 0;
+        }
+        return {
+            red: get('red') / rows.length,
+            amber: get('amber') / rows.length,
+            green: get('green') / rows.length,
+            incomplete: get(null) / rows.length
+        };
+    });
+}
+exports.summarizeRAG = summarizeRAG;
+
+
+},{"../fusion/fusion":2,"../process-rows/rows":4,"./calendar":5,"./config":6,"lodash":29,"moment":30}],10:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 var Chartist = require('chartist');
@@ -984,7 +1166,7 @@ var BarChart = Ractive.extend({
 module.exports = BarChart;
 
 
-},{"chartist":25,"lodash":27,"ractive":29}],10:[function(require,module,exports){
+},{"chartist":27,"lodash":29,"ractive":31}],11:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 
@@ -994,7 +1176,7 @@ var Button = Ractive.extend({
 module.exports = Button;
 
 
-},{"ractive":29}],11:[function(require,module,exports){
+},{"ractive":31}],12:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1007,7 +1189,7 @@ var Button = Ractive.extend({
 module.exports = Button;
 
 
-},{"ractive":29}],12:[function(require,module,exports){
+},{"ractive":31}],13:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1021,7 +1203,7 @@ var CheckBox = Ractive.extend({
 module.exports = CheckBox;
 
 
-},{"ractive":29}],13:[function(require,module,exports){
+},{"ractive":31}],14:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 var _ = require('lodash');
@@ -1070,7 +1252,7 @@ var Dropdown = Ractive.extend({
 module.exports = Dropdown;
 
 
-},{"lodash":27,"ractive":29}],14:[function(require,module,exports){
+},{"lodash":29,"ractive":31}],15:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1080,7 +1262,7 @@ var Field = Ractive.extend({
 module.exports = Field;
 
 
-},{"ractive":29}],15:[function(require,module,exports){
+},{"ractive":31}],16:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var Row = require('../process-rows/rows');
 var _ = require('lodash');
@@ -1093,7 +1275,7 @@ var Pipeline = (function () {
         if (_.isUndefined(value))
             return;
         this.current = value;
-        console.log(this.description + ': SEND ' + JSON.stringify(value));
+        console.log(this.description + ': SEND: ', JSON.stringify(value));
         _.each(this.subscribers, function (s) { return s(value); });
     };
     Pipeline.prototype.subscribe = function (subscriber) {
@@ -1162,6 +1344,12 @@ function present(signal, component, keypath) {
     });
 }
 exports.present = present;
+function transform(input, fn) {
+    var output = new Pipeline('transform(' + input.description + ')');
+    input.subscribe(function (x) { return output.send(fn(x)); });
+    return output;
+}
+exports.transform = transform;
 function constant(val) {
     var output = new Pipeline(String(val));
     output.send(val);
@@ -1188,7 +1376,7 @@ function childSignal(component, key) {
 exports.childSignal = childSignal;
 
 
-},{"../process-rows/rows":4,"lodash":27}],16:[function(require,module,exports){
+},{"../process-rows/rows":4,"lodash":29}],17:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1198,7 +1386,7 @@ var RAGIndicator = Ractive.extend({
 module.exports = RAGIndicator;
 
 
-},{"ractive":29}],17:[function(require,module,exports){
+},{"ractive":31}],18:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1208,7 +1396,7 @@ var RAGIndicator = Ractive.extend({
 module.exports = RAGIndicator;
 
 
-},{"ractive":29}],18:[function(require,module,exports){
+},{"ractive":31}],19:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1245,42 +1433,23 @@ var ReportPicker = Ractive.extend({
 module.exports = ReportPicker;
 
 
-},{"lodash":27,"ractive":29}],19:[function(require,module,exports){
+},{"lodash":29,"ractive":31}],20:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var Ractive = require('ractive');
 
 var _ = require('lodash');
-var DefaultField = (function () {
-    function DefaultField(x) {
-        this.value = x;
-    }
-    DefaultField.prototype.format = function (val) {
-        return String(val);
-    };
-    return DefaultField;
-})();
 var Table = Ractive.extend({
-    template: "<div class='table-responsive'>\n\t<table class='table'>\n\t\t<thead>\n\t\t\t<tr>\n\t\t\t\t{{# columns }}\n\t\t\t\t\t<th class={{ (this.key === sortColumn) ? 'table-sort-column' : '' }}>\n\t\t\t\t\t\t<a role='button' href='#' on-click='handleHeaderClicked(key)'>{{title}}</a>\n\t\t\t\t\t</th>\n\t\t\t\t{{/}}\n\t\t\t</tr>\n\t\t</thead>\n\n\t\t<tbody>\n\t\t\t{{# sortedRows(sortColumn, data, descending) }}\n\t\t\t\t<tr class={{ rowColumnClass(ragColumn, this) }}>\n\t\t\t\t\t{{# cells(this, columns) }}\n\t\t\t\t\t\t<td>\n\t\t\t\t\t\t\t{{format(value)}}\n\t\t\t\t\t\t</td>\n\t\t\t\t\t{{/}}\n\t\t\t\t</tr>\n\t\t\t{{/}}\n\t\t</tbody>\n\t</table>\n</div>\n",
+    template: "<div class='table-responsive'>\n\t<table class='table'>\n\t\t<thead>\n\t\t\t<tr>\n\t\t\t\t{{# columns }}\n\t\t\t\t\t<th class={{ (this.key === sortColumn) ? 'table-sort-column' : '' }}>\n\t\t\t\t\t\t<a role='button' href='#' on-click='handleHeaderClicked(key)'>{{title}}</a>\n\t\t\t\t\t</th>\n\t\t\t\t{{/}}\n\t\t\t</tr>\n\t\t</thead>\n\n\t\t<tbody>\n\t\t\t{{# sortedRows(sortColumn, data, descending) }}\n\t\t\t\t<tr class={{ rowColumnClass(ragColumn, this) }}>\n\t\t\t\t\t{{# cells(this, columns) }}\n\t\t\t\t\t\t<td>\n\t\t\t\t\t\t\t{{this}}\n\t\t\t\t\t\t</td>\n\t\t\t\t\t{{/}}\n\t\t\t\t</tr>\n\t\t\t{{/}}\n\t\t</tbody>\n\t</table>\n</div>\n",
     data: {
         cells: function (row, columns) {
-            return _.map(columns, function (col) { return row[col.key]; });
+            return _.map(columns, function (col) { return col.format ? col.format(row[col.key]) : row[col.key]; });
         },
         sortedRows: function (sortColumn, data) {
-            var rows = _.map(data, function (row) {
-                return _.mapValues(row, function (fieldVal) {
-                    if (_.isObject(fieldVal) && ('value' in fieldVal) && ('format' in fieldVal)) {
-                        return fieldVal;
-                    }
-                    else {
-                        return new DefaultField(fieldVal);
-                    }
-                });
-            });
             if (sortColumn) {
-                return _.sortBy(rows, function (row) { return row[sortColumn].value; });
+                return _.sortBy(data, function (row) { return row[sortColumn]; });
             }
             else {
-                return rows;
+                return data;
             }
         },
         rowColumnClass: function (ragColumn, row) {
@@ -1306,25 +1475,46 @@ var Table = Ractive.extend({
 module.exports = Table;
 
 
-},{"lodash":27,"ractive":29}],20:[function(require,module,exports){
+},{"lodash":29,"ractive":31}],21:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
+var query = require('../lib/ui/query');
+var calendar = require('../lib/reports/calendar');
+var timetarget = require('../lib/reports/time-target');
+var recruitment = require('../lib/reports/recruitment');
+var Rows = require('../lib/process-rows/rows');
 var DashboardView = Ractive.extend({
-    template: "<QueryRecruitment query={{randomVal}} result={{red}}></QueryRecruitment>\n<QueryRecruitment query={{randomVal / 2}} result={{green}}></QueryRecruitment>\n\n<div class='row dashboard-kpi-row'>\n\t<div class='col-xs-8'>\n\t\t<div class=\"dashboard-kpi-gague-row row\">\n\t\t\t<div class='dashboard-metric-caption'>\n\t\t\t\tHLO2: Increase the proportion of studies recruiting to Time and Target\n\t\t\t</div>\n\t\t\t<RAGProportions red={{0.2}} amber={{0.5}} green={{0.3}}></RAGProportions>\n\t\t</div>\n\t\t<div class=\"dashboard-kpi-gague-row row\">\n\t\t\t<div class='dashboard-metric-caption'>\n\t\t\t\tHLO2: Increase the proportion of studies recruiting to Time and Target\n\t\t\t</div>\n\t\t\t<RAGValue value={{green}} rag='green'></RAGValue>\n\t\t</div>\n\t\t<div class=\"dashboard-kpi-gague-row row\">\n\t\t\t<RAGValue value={{red}} rag='red'></RAGValue>\n\t\t</div>\n\t</div>\n\t<div class='col-xs-4'>\n\t\t<BarChart data={{chartData}}></BarChart>\n\t</div>\n</div>\n"
+    template: "<QueryRecruitment query={{randomVal}} result={{red}}></QueryRecruitment>\n<QueryRecruitment query={{randomVal / 2}} result={{green}}></QueryRecruitment>\n\n<div class='row dashboard-kpi-row'>\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tIncrease in network-wide recruitment\n\t\t</div>\n\n\t\t<Chart type='Line' data={{hlo1}} height={{200}}></Chart>\n\t</div>\n\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tTime &amp; Target\n\t\t</div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2a.red}} amber={{hlo2a.amber}} green={{hlo2a.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2b.red}} amber={{hlo2b.amber}} green={{hlo2b.green}}></RAGProportions>\n\t\t</div>\n\t</div>\n</div>\n",
+    onrender: function () {
+        var hlo1 = query.transform(query.run(query.constant(null), function () {
+            return recruitment.performanceGraphs({
+                queries: [{ id: '', divisions: [], commercial: [], specialties: [], trusts: [] }],
+                queryOptions: { yearType: 2 /* recruitment */, granularity: 0 /* annual */, banded: false, weighted: false }
+            });
+        }), function (x) { return x[0]; });
+        var hlo2a = query.run(query.constant(null), function () {
+            return Rows.sequence(timetarget.timeTargetReportCommercialClosed({ drillDownQuery: [], reportingPeriod: new Date() }), timetarget.summarizeRAG());
+        });
+        var hlo2b = query.run(query.constant(null), function () {
+            return Rows.sequence(timetarget.timeTargetReportNoncommercialClosed({ drillDownQuery: [], reportingPeriod: new Date() }), Rows.log('tt'), timetarget.summarizeRAG());
+        });
+        query.present(hlo1, this, 'hlo1');
+        query.present(hlo2a, this, 'hlo2a');
+        query.present(hlo2b, this, 'hlo2b');
+    }
 });
 module.exports = DashboardView;
 
 
-},{"ractive":29}],21:[function(require,module,exports){
+},{"../lib/process-rows/rows":4,"../lib/reports/calendar":5,"../lib/reports/recruitment":8,"../lib/reports/time-target":9,"../lib/ui/query":16,"ractive":31}],22:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 
-var _ = require('lodash');
 var query = require('../../lib/ui/query');
 var datasource = require('../../lib/reports/datasource');
 var RecruitmentBenchmark = Ractive.extend({
-    template: "<ButtonGroup>\n\t<Dropdown size='sm' multiple={{true}} label='Trusts' options={{menuOptions.trusts}} selection={{menuSelection.trusts}}></Dropdown>\n\t<Dropdown size='sm' multiple={{true}} label='Divisions' options={{menuOptions.divisions}} selection={{menuSelection.divisions}}></Dropdown>\n\t<Dropdown size='sm' multiple={{true}} label='Specalties' options={{menuOptions.specialties}} selection={{menuSelection.specialties}}></Dropdown>\n</ButtonGroup>\n\n<div class='chart-caption'>\n\t{{#caption}}\n\t\t{{this}}<br>\n\t{{/}}\n</div>\n\n<Chart type='Bar' data={{chartData}} stackBars={{true}} height={{300}}>\n</Chart>\n\n",
+    template: "<ButtonGroup>\n\t<Dropdown size='xs' multiple={{true}} label='Trusts' options={{menuOptions.trusts}} selection={{menuSelection.trusts}}></Dropdown>\n\t<Dropdown size='xs' multiple={{true}} label='Divisions' options={{menuOptions.divisions}} selection={{menuSelection.divisions}}></Dropdown>\n\t<Dropdown size='xs' multiple={{true}} label='Specalties' options={{menuOptions.specialties}} selection={{menuSelection.specialties}}></Dropdown>\n</ButtonGroup>\n\n<div class='chart-caption'>\n\t{{#caption}}\n\t\t{{this}}<br>\n\t{{/}}\n</div>\n\n<Chart type='Bar' data={{chartData}} stackBars={{true}} height={{300}}>\n</Chart>\n\n<Table columns={{tableColumns}} sortColumn='Period' data={{tableData}}></Table>\n",
     onrender: function () {
         this.set('menuSelection', {
             trusts: [],
@@ -1342,14 +1532,8 @@ var RecruitmentBenchmark = Ractive.extend({
             divisions: query.run(query.constant(null), function (x) { return datasource.allDivisions(); }),
             specialties: query.run(query.constant(null), function (x) { return datasource.allSpecialties(); })
         });
-        var caption = query.run(selection, function (inputs) { return function () {
-            var trusts = inputs.trusts.length > 0 ? inputs.trusts.join(', ') : 'Network-wide';
-            var divisions = inputs.divisions.length > 0 ? 'Divisions ' + inputs.divisions.map(function (x) { return x.match(/\d$/)[0]; }).join(', ') : null;
-            var specialties = inputs.specialties.length > 0 ? inputs.specialties.join(', ') : null;
-            return Promise.resolve(_.compact(['Weighted recruitment activity', trusts, divisions, specialties]));
-        }; });
         query.present(options, this, 'menuOptions');
-        query.present(caption, this, 'caption');
+        this.observe('tableData', function (x) { return console.log(x); });
         this.set('selectionSignal', selection);
     },
     data: {
@@ -1362,46 +1546,159 @@ var RecruitmentBenchmark = Ractive.extend({
             divisions: [],
             trusts: [],
             specialties: []
-        }
+        },
+        tableColumns: [
+            { title: 'When', key: 'Period', format: function (x) { return x.getFullYear(); } },
+            { title: 'Recruitment', key: 'Recruitment' },
+            { title: 'Weighted Activity', key: 'WeightedActivity' },
+        ]
     }
 });
 module.exports = RecruitmentBenchmark;
 
 
-},{"../../lib/reports/datasource":7,"../../lib/ui/query":15,"lodash":27,"ractive":29}],22:[function(require,module,exports){
+},{"../../lib/reports/datasource":7,"../../lib/ui/query":16,"ractive":31}],23:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
+var _ = require('lodash');
 var query = require('../lib/ui/query');
 var calendar = require('../lib/reports/calendar');
 var recruitment = require('../lib/reports/recruitment');
 var RecruitmentView = Ractive.extend({
-    template: "<div class='row'>\n\t<div class='col-xs-6'>\n\t\t<BenchmarkChart \n\t\t\tselectionSignal={{queryL}} \n\t\t\tchartData={{charts[0]}}>\n\t\t</BenchmarkChart>\n\t</div>\n\t\n\t<div class='col-xs-6'>\n\t\t<BenchmarkChart\n\t\t\tselectionSignal={{queryR}}\n\t\t\tchartData={{charts[1]}}>\n\t\t</BenchmarkChart>\n\t</div>\n</div>\n",
+    template: "<div class='row'>\n\t<div class ='col-xs-1'>\n\t</div>\n\t<div class='col-xs-10'>\n\t\t<form class='form-inline'>\n\t\t\t<ButtonGroup>\n\t\t\t\t<Dropdown size='sm' format={{formatYear}} label='By {{formatYear(yearType)}} year' options={{yearTypeOptions}} selection={{yearType}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' format={{formatGranularity}} label='{{formatGranularity(granularity)}}' options={{granularityOptions}} selection={{granularity}}></Dropdown>\n\t\t\t</ButtonGroup>\n\t\t\t<CheckBox size='sm' label='Weighted' value={{weighted}}></CheckBox>\n\t\t\t<CheckBox size='sm' label='Show bandings' value={{banded}}></CheckBox>\n\t\t</form>\n\t</div>\n\t<div class='col-xs-1'>\n\t</div>\n</div>\n\n<div class='row'>\n\t<div class ='col-xs-1'>\n\t</div>\n\t<div class='col-xs-5'>\n\t\t<BenchmarkChart \n\t\t\tselectionSignal={{queryL}} \n\t\t\tcaption={{reportData.captionL}}\n\t\t\ttableData={{reportData.tableL}}\n\t\t\tchartData={{reportData.charts[0]}}>\n\t\t</BenchmarkChart>\n\t</div>\n\n\t<div class='col-xs-5'>\n\t\t<BenchmarkChart\n\t\t\tselectionSignal={{queryR}}\n\t\t\tcaption={{reportData.captionR}}\n\t\t\ttableData={{reportData.tableR}}\n\t\t\tchartData={{reportData.charts[1]}}>\n\t\t</BenchmarkChart>\n\t</div>\n\t<div class ='col-xs-1'>\n\t</div>\n</div>",
     onrender: function () {
         var request = query.merge({
             left: query.childSignal(this, 'queryL'),
             right: query.childSignal(this, 'queryR'),
             options: query.merge({
-                granularity: query.constant(0 /* annual */),
-                yearType: query.constant(2 /* recruitment */),
-                weighted: query.constant(true),
-                banded: query.constant(true)
+                granularity: query.observe(this, 'granularity'),
+                yearType: query.observe(this, 'yearType'),
+                weighted: query.observe(this, 'weighted'),
+                banded: query.observe(this, 'banded')
             })
         });
-        var charts = query.run(request, function (request) { return recruitment.performanceGraphs({
-            queries: [request.left, request.right],
-            queryOptions: request.options
-        }); });
-        query.present(charts, this, 'charts');
+        var captionFromSelection = function (q, options) {
+            var trusts = q.trusts.length > 0 ? q.trusts.join(', ') : 'Network-wide';
+            var divisions = q.divisions.length > 0 ? 'Divisions ' + q.divisions.map(function (x) { return x.match(/\d$/)[0]; }).join(', ') : null;
+            var specialties = q.specialties.length > 0 ? q.specialties.join(', ') : null;
+            var desc = options.weighted ? 'Weighted recruitment activity' : 'Raw recruitment totals';
+            return _.compact([desc, trusts, divisions, specialties]);
+        };
+        var result = query.merge({
+            captionL: query.transform(request, function (req) { return captionFromSelection(req.left, req.options); }),
+            captionR: query.transform(request, function (req) { return captionFromSelection(req.right, req.options); }),
+            charts: query.run(request, function (req) { return recruitment.performanceGraphs({
+                queries: [req.left, req.right],
+                queryOptions: req.options
+            }); }),
+            tableL: query.run(request, function (req) { return recruitment.performanceTable({
+                query: req.left,
+                queryOptions: req.options
+            }); }),
+            tableR: query.run(request, function (req) { return recruitment.performanceTable({
+                query: req.right,
+                queryOptions: req.options
+            }); })
+        });
+        query.present(result, this, 'reportData');
     },
     components: {
         BenchmarkChart: require('./recruitment-components/benchmark-chart')
+    },
+    data: {
+        formatYear: calendar.formatYearType,
+        formatGranularity: calendar.formatGranularity,
+        granularity: 0 /* annual */,
+        yearType: 2 /* recruitment */,
+        yearTypeOptions: [1 /* financial */, 2 /* recruitment */],
+        granularityOptions: [0 /* annual */, 1 /* monthly */],
+        weighted: true,
+        banded: true
     }
 });
 module.exports = RecruitmentView;
 
 
-},{"../lib/reports/calendar":5,"../lib/reports/recruitment":8,"../lib/ui/query":15,"./recruitment-components/benchmark-chart":21,"ractive":29}],23:[function(require,module,exports){
+},{"../lib/reports/calendar":5,"../lib/reports/recruitment":8,"../lib/ui/query":16,"./recruitment-components/benchmark-chart":22,"lodash":29,"ractive":31}],24:[function(require,module,exports){
+/// <reference path="./references.d.ts" />
+var Ractive = require('ractive');
+
+var _ = require('lodash');
+var query = require('../lib/ui/query');
+var datasource = require('../lib/reports/datasource');
+var timetarget = require('../lib/reports/time-target');
+var Fusion = require('../lib/fusion/fusion');
+function deNull(x) {
+    if (_.isNull(x))
+        return '-';
+    else
+        return x;
+}
+var RecruitmentView = Ractive.extend({
+    template: "<div class='row'>\n\t<div class='col-xs-1'></div>\n\t<div class='col-xs-10'>\n\t\t<form class='form-inline'>\n\t\t\t<ButtonGroup>\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Banding: {{formatPicked(banding)}}' options={{bandingOptions}} selection={{banding}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Commercial: {{formatPicked(commercial)}}' options={{commercialOptions}} selection={{commercial}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Trusts: {{formatPicked(trusts)}}' options={{trustOptions}} selection={{trusts}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Divisions: {{formatPicked(divisions)}}' options={{divisionOptions}} selection={{divisions}}></Dropdown>\n\t\t\t</ButtonGroup>\n\n\t\t\t<Field size='sm' label='Study Title' value={{title}}></Field>\n\t\t</form>\n\t</div>\n\t<div class='col-xs-1'></div>\n</div>\n\n<div class='row'>\n\t<div class='col-xs-1'></div>\n\t<div class='col-xs-10'>\n\t\t<Table data={{reportData}} columns={{tableColumns}} ragColumn='RAG'></Table>\n\t</div>\n\t<div class='col-xs-1'></div>\n</div>\n",
+    onrender: function () {
+        query.present(query.run(query.constant(null), function () { return datasource.allTrusts(); }), this, 'trustOptions');
+        query.present(query.run(query.constant(null), function () { return datasource.allDivisions(); }), this, 'divisionOptions');
+        query.present(query.constant(['Commercial', 'Non-Commercial']), this, 'commercialOptions');
+        query.present(query.constant(['Interventional/Both', 'Observational', 'Large']), this, 'bandingOptions');
+        var request = query.merge({
+            GroupedTrustName: query.observe(this, 'trusts'),
+            CommercialStudy: query.observe(this, 'commercial'),
+            Banding: query.observe(this, 'banding'),
+            MainReportingDivision: query.observe(this, 'divisions'),
+            StudyTitle: query.observe(this, 'title')
+        });
+        var result = query.run(request, function (req) {
+            var filters = _.map(req, function (val, key) {
+                if (val.length > 0) {
+                    if (key === 'StudyTitle')
+                        return Fusion.like(key, val);
+                    else
+                        return Fusion.oneOf(key, val);
+                }
+            });
+            return timetarget.timeTargetReport({
+                drillDownQuery: filters,
+                reportingPeriod: new Date()
+            });
+        });
+        query.present(result, this, 'reportData');
+    },
+    data: {
+        trusts: [],
+        commercial: [],
+        banding: [],
+        divisions: [],
+        title: [],
+        divisionOptions: [],
+        commercialOptions: [],
+        trustOptions: [],
+        bandingOptions: [],
+        formatPicked: function (picked) {
+            if (!picked || picked.length === 0)
+                return 'All';
+            else
+                return picked.join(', ');
+        },
+        tableColumns: [
+            { key: 'RAG', title: 'RAG', format: deNull },
+            { key: 'StudyTitle', title: 'Study Title', format: deNull },
+            { key: 'GroupedTrustName', title: 'Trust', format: deNull },
+            { key: 'MainSpecialty', title: 'Main Specialty', format: deNull },
+            { key: 'ExpectedStudyEndDate', title: 'Expected End', format: deNull },
+            { key: 'ActualStudyEndDate', title: 'Actual End', format: deNull },
+            { key: 'Recruitment', title: 'Total Recruitment', format: deNull },
+            { key: 'RecruitmentTarget', title: 'Expected Recruitment', format: deNull },
+            { key: 'ExpectedDuration', title: 'Expected Duration', format: deNull },
+            { key: 'ActualDuration', title: 'Actual Duration', format: deNull },
+        ]
+    }
+});
+module.exports = RecruitmentView;
+
+
+},{"../lib/fusion/fusion":2,"../lib/reports/datasource":7,"../lib/reports/time-target":9,"../lib/ui/query":16,"lodash":29,"ractive":31}],25:[function(require,module,exports){
 // Browser Request
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -1897,7 +2194,7 @@ function b64_enc (data) {
 }));
 //UMD FOOTER END
 
-},{}],24:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1956,7 +2253,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],25:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -4632,7 +4929,7 @@ process.umask = function() { return 0; };
 
 }));
 
-},{}],26:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 (function (process,global){
 /*!
  * @overview es6-promise - a tiny implementation of Promises/A+.
@@ -5595,7 +5892,7 @@ process.umask = function() { return 0; };
     }
 }).call(this);
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":24}],27:[function(require,module,exports){
+},{"_process":26}],29:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -12384,7 +12681,7 @@ process.umask = function() { return 0; };
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],28:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 (function (global){
 //! moment.js
 //! version : 2.8.4
@@ -15324,7 +15621,7 @@ process.umask = function() { return 0; };
 }).call(this);
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],29:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 /*
 	ractive.js v0.6.1
 	2014-10-25 - commit 3a576eb3 
