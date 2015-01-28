@@ -1149,7 +1149,6 @@ var BarChart = Ractive.extend({
         component.on('teardown', function () {
             chart.detach();
         });
-        console.log('options:', chartOptionKeys.join(' '));
         var first = true;
         component.observe('data ' + chartOptionKeys.join(' '), function (newval, oldval) {
             if (!first)
@@ -1439,7 +1438,7 @@ var Ractive = require('ractive');
 
 var _ = require('lodash');
 var Table = Ractive.extend({
-    template: "<div class='table-responsive'>\n\t<table class='table'>\n\t\t<thead>\n\t\t\t<tr>\n\t\t\t\t{{# columns }}\n\t\t\t\t\t<th class={{ (this.key === sortColumn) ? 'table-sort-column' : '' }}>\n\t\t\t\t\t\t<a role='button' href='#' on-click='handleHeaderClicked(key)'>{{title}}</a>\n\t\t\t\t\t</th>\n\t\t\t\t{{/}}\n\t\t\t</tr>\n\t\t</thead>\n\n\t\t<tbody>\n\t\t\t{{# sortedRows(sortColumn, data, descending) }}\n\t\t\t\t<tr class={{ rowColumnClass(ragColumn, this) }}>\n\t\t\t\t\t{{# cells(this, columns) }}\n\t\t\t\t\t\t<td>\n\t\t\t\t\t\t\t{{this}}\n\t\t\t\t\t\t</td>\n\t\t\t\t\t{{/}}\n\t\t\t\t</tr>\n\t\t\t{{/}}\n\t\t</tbody>\n\t</table>\n</div>\n",
+    template: "<div class='table-responsive'>\n\t<table class='table data-table'>\n\t\t<thead>\n\t\t\t<tr>\n\t\t\t\t{{# columns }}\n\t\t\t\t\t<th class={{ (this.key === sortColumn) ? 'table-sort-column' : '' }}>\n\t\t\t\t\t\t<a role='button' href='#' on-click='handleHeaderClicked(key)'>{{title}}</a>\n\t\t\t\t\t</th>\n\t\t\t\t{{/}}\n\t\t\t</tr>\n\t\t</thead>\n\n\t\t<tbody>\n\t\t\t{{# sortedRows(sortColumn, data, descending) }}\n\t\t\t\t<tr class={{ rowColumnClass(ragColumn, this) }}>\n\t\t\t\t\t{{# cells(this, columns) }}\n\t\t\t\t\t\t<td>\n\t\t\t\t\t\t\t{{this}}\n\t\t\t\t\t\t</td>\n\t\t\t\t\t{{/}}\n\t\t\t\t</tr>\n\t\t\t{{/}}\n\t\t</tbody>\n\t</table>\n</div>\n",
     data: {
         cells: function (row, columns) {
             return _.map(columns, function (col) { return col.format ? col.format(row[col.key]) : row[col.key]; });
@@ -1485,7 +1484,7 @@ var timetarget = require('../lib/reports/time-target');
 var recruitment = require('../lib/reports/recruitment');
 var Rows = require('../lib/process-rows/rows');
 var DashboardView = Ractive.extend({
-    template: "<QueryRecruitment query={{randomVal}} result={{red}}></QueryRecruitment>\n<QueryRecruitment query={{randomVal / 2}} result={{green}}></QueryRecruitment>\n\n<div class='row dashboard-kpi-row'>\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tIncrease in network-wide recruitment\n\t\t</div>\n\n\t\t<Chart type='Line' data={{hlo1}} height={{200}}></Chart>\n\t</div>\n\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tTime &amp; Target\n\t\t</div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2a.red}} amber={{hlo2a.amber}} green={{hlo2a.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2b.red}} amber={{hlo2b.amber}} green={{hlo2b.green}}></RAGProportions>\n\t\t</div>\n\t</div>\n</div>\n",
+    template: "<div class='row dashboard-kpi-row'>\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tIncrease in network-wide recruitment\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<Chart type='Line' data={{hlo1}} height={{200}}></Chart>\n\t</div>\n\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tTime &amp; Target\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2a.red}} amber={{hlo2a.amber}} green={{hlo2a.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2b.red}} amber={{hlo2b.amber}} green={{hlo2b.green}}></RAGProportions>\n\t\t</div>\n\t</div>\n</div>\n",
     onrender: function () {
         var hlo1 = query.transform(query.run(query.constant(null), function () {
             return recruitment.performanceGraphs({
@@ -1497,7 +1496,7 @@ var DashboardView = Ractive.extend({
             return Rows.sequence(timetarget.timeTargetReportCommercialClosed({ drillDownQuery: [], reportingPeriod: new Date() }), timetarget.summarizeRAG());
         });
         var hlo2b = query.run(query.constant(null), function () {
-            return Rows.sequence(timetarget.timeTargetReportNoncommercialClosed({ drillDownQuery: [], reportingPeriod: new Date() }), Rows.log('tt'), timetarget.summarizeRAG());
+            return Rows.sequence(timetarget.timeTargetReportNoncommercialClosed({ drillDownQuery: [], reportingPeriod: new Date() }), timetarget.summarizeRAG());
         });
         query.present(hlo1, this, 'hlo1');
         query.present(hlo2a, this, 'hlo2a');
@@ -1514,7 +1513,7 @@ var Ractive = require('ractive');
 var query = require('../../lib/ui/query');
 var datasource = require('../../lib/reports/datasource');
 var RecruitmentBenchmark = Ractive.extend({
-    template: "<ButtonGroup>\n\t<Dropdown size='xs' multiple={{true}} label='Trusts' options={{menuOptions.trusts}} selection={{menuSelection.trusts}}></Dropdown>\n\t<Dropdown size='xs' multiple={{true}} label='Divisions' options={{menuOptions.divisions}} selection={{menuSelection.divisions}}></Dropdown>\n\t<Dropdown size='xs' multiple={{true}} label='Specalties' options={{menuOptions.specialties}} selection={{menuSelection.specialties}}></Dropdown>\n</ButtonGroup>\n\n<div class='chart-caption'>\n\t{{#caption}}\n\t\t{{this}}<br>\n\t{{/}}\n</div>\n\n<Chart type='Bar' data={{chartData}} stackBars={{true}} height={{300}}>\n</Chart>\n\n<Table columns={{tableColumns}} sortColumn='Period' data={{tableData}}></Table>\n",
+    template: "<ButtonGroup>\n\t<Dropdown size='xs' multiple={{true}} label='Trusts' options={{menuOptions.trusts}} selection={{menuSelection.trusts}}></Dropdown>\n\t<Dropdown size='xs' multiple={{true}} label='Divisions' options={{menuOptions.divisions}} selection={{menuSelection.divisions}}></Dropdown>\n\t<Dropdown size='xs' multiple={{true}} label='Specalties' options={{menuOptions.specialties}} selection={{menuSelection.specialties}}></Dropdown>\n</ButtonGroup>\n\n<div class='row spacer-row-sm'></div>\n\n<div class='chart-caption'>\n\t{{#caption}}\n\t\t{{this}}<br>\n\t{{/}}\n</div>\n\n<Chart type='Bar' data={{chartData}} stackBars={{true}} height={{300}}>\n</Chart>\n\n<Table columns={{tableColumns}} sortColumn='Period' data={{tableData}}></Table>\n",
     onrender: function () {
         this.set('menuSelection', {
             trusts: [],
@@ -1533,7 +1532,6 @@ var RecruitmentBenchmark = Ractive.extend({
             specialties: query.run(query.constant(null), function (x) { return datasource.allSpecialties(); })
         });
         query.present(options, this, 'menuOptions');
-        this.observe('tableData', function (x) { return console.log(x); });
         this.set('selectionSignal', selection);
     },
     data: {
@@ -1566,7 +1564,7 @@ var query = require('../lib/ui/query');
 var calendar = require('../lib/reports/calendar');
 var recruitment = require('../lib/reports/recruitment');
 var RecruitmentView = Ractive.extend({
-    template: "<div class='row'>\n\t<div class ='col-xs-1'>\n\t</div>\n\t<div class='col-xs-10'>\n\t\t<form class='form-inline'>\n\t\t\t<ButtonGroup>\n\t\t\t\t<Dropdown size='sm' format={{formatYear}} label='By {{formatYear(yearType)}} year' options={{yearTypeOptions}} selection={{yearType}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' format={{formatGranularity}} label='{{formatGranularity(granularity)}}' options={{granularityOptions}} selection={{granularity}}></Dropdown>\n\t\t\t</ButtonGroup>\n\t\t\t<CheckBox size='sm' label='Weighted' value={{weighted}}></CheckBox>\n\t\t\t<CheckBox size='sm' label='Show bandings' value={{banded}}></CheckBox>\n\t\t</form>\n\t</div>\n\t<div class='col-xs-1'>\n\t</div>\n</div>\n\n<div class='row'>\n\t<div class ='col-xs-1'>\n\t</div>\n\t<div class='col-xs-5'>\n\t\t<BenchmarkChart \n\t\t\tselectionSignal={{queryL}} \n\t\t\tcaption={{reportData.captionL}}\n\t\t\ttableData={{reportData.tableL}}\n\t\t\tchartData={{reportData.charts[0]}}>\n\t\t</BenchmarkChart>\n\t</div>\n\n\t<div class='col-xs-5'>\n\t\t<BenchmarkChart\n\t\t\tselectionSignal={{queryR}}\n\t\t\tcaption={{reportData.captionR}}\n\t\t\ttableData={{reportData.tableR}}\n\t\t\tchartData={{reportData.charts[1]}}>\n\t\t</BenchmarkChart>\n\t</div>\n\t<div class ='col-xs-1'>\n\t</div>\n</div>",
+    template: "<div class='row'>\n\t<div class='col-xs-10'>\n\t\t<form class='form-inline'>\n\t\t\t<ButtonGroup>\n\t\t\t\t<Dropdown size='sm' format={{formatYear}} label='By {{formatYear(yearType)}} year' options={{yearTypeOptions}} selection={{yearType}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' format={{formatGranularity}} label='{{formatGranularity(granularity)}}' options={{granularityOptions}} selection={{granularity}}></Dropdown>\n\t\t\t</ButtonGroup>\n\t\t\t<CheckBox size='sm' label='Weighted' value={{weighted}}></CheckBox>\n\t\t\t<CheckBox size='sm' label='Show bandings' value={{banded}}></CheckBox>\n\t\t</form>\n\t</div>\n</div>\n\n<div class='row spacer-row'></div>\n\n<div class='row'>\n\t<div class='col-xs-5'>\n\t\t<BenchmarkChart \n\t\t\tselectionSignal={{queryL}} \n\t\t\tcaption={{reportData.captionL}}\n\t\t\ttableData={{reportData.tableL}}\n\t\t\tchartData={{reportData.charts[0]}}>\n\t\t</BenchmarkChart>\n\t</div>\n\n\t<div class='col-xs-5'>\n\t\t<BenchmarkChart\n\t\t\tselectionSignal={{queryR}}\n\t\t\tcaption={{reportData.captionR}}\n\t\t\ttableData={{reportData.tableR}}\n\t\t\tchartData={{reportData.charts[1]}}>\n\t\t</BenchmarkChart>\n\t</div>\n</div>",
     onrender: function () {
         var request = query.merge({
             left: query.childSignal(this, 'queryL'),
@@ -1636,7 +1634,7 @@ function deNull(x) {
         return x;
 }
 var RecruitmentView = Ractive.extend({
-    template: "<div class='row'>\n\t<div class='col-xs-1'></div>\n\t<div class='col-xs-10'>\n\t\t<form class='form-inline'>\n\t\t\t<ButtonGroup>\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Banding: {{formatPicked(banding)}}' options={{bandingOptions}} selection={{banding}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Commercial: {{formatPicked(commercial)}}' options={{commercialOptions}} selection={{commercial}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Trusts: {{formatPicked(trusts)}}' options={{trustOptions}} selection={{trusts}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Divisions: {{formatPicked(divisions)}}' options={{divisionOptions}} selection={{divisions}}></Dropdown>\n\t\t\t</ButtonGroup>\n\n\t\t\t<Field size='sm' label='Study Title' value={{title}}></Field>\n\t\t</form>\n\t</div>\n\t<div class='col-xs-1'></div>\n</div>\n\n<div class='row'>\n\t<div class='col-xs-1'></div>\n\t<div class='col-xs-10'>\n\t\t<Table data={{reportData}} columns={{tableColumns}} ragColumn='RAG'></Table>\n\t</div>\n\t<div class='col-xs-1'></div>\n</div>\n",
+    template: "<div class='row'>\n\t<div class='col-xs-7'>\n\t\t<ButtonGroup>\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Banding: {{formatPicked(banding)}}' options={{bandingOptions}} selection={{banding}}></Dropdown>\n\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Commercial: {{formatPicked(commercial)}}' options={{commercialOptions}} selection={{commercial}}></Dropdown>\n\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Trusts: {{formatPicked(trusts)}}' options={{trustOptions}} selection={{trusts}}></Dropdown>\n\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Divisions: {{formatPicked(divisions)}}' options={{divisionOptions}} selection={{divisions}}></Dropdown>\n\t\t</ButtonGroup>\n\t</div>\n\t<div class='col-xs-3'>\n\t\t<form class='form-inline'>\n\t\t\t<Field size='sm' label='Study Title' value={{title}}></Field>\n\t\t</form>\n\t</div>\n</div>\n\n<div class='row spacer-row'></div>\n\n<div class='row'>\n\t<div class='col-xs-10'>\n\t\t<Table data={{reportData}} columns={{tableColumns}} ragColumn='RAG'></Table>\n\t</div>\n</div>\n",
     onrender: function () {
         query.present(query.run(query.constant(null), function () { return datasource.allTrusts(); }), this, 'trustOptions');
         query.present(query.run(query.constant(null), function () { return datasource.allDivisions(); }), this, 'divisionOptions');
@@ -1670,7 +1668,7 @@ var RecruitmentView = Ractive.extend({
         commercial: [],
         banding: [],
         divisions: [],
-        title: [],
+        title: '',
         divisionOptions: [],
         commercialOptions: [],
         trustOptions: [],

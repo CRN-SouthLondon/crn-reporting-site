@@ -580,6 +580,16 @@
   left: 0;
 }
 
+div.spacer-row,
+div.spacer-row-sm {
+  height: 5px;
+}
+
+.data-table th,
+.data-table td {
+  font-size: 9pt;
+}
+
 li.report-picker-button.active > a,
 li.report-picker-button.active:hover > a {
   border-radius: 0;
@@ -604,6 +614,21 @@ li.report-picker-button.active:hover > a {
   border-color: #bbb;
 }
 
+.table tr th a {
+  color: #666;
+}
+
+form {
+  font-size: 9pt;
+  color: #666;
+}
+
+.dashboard-metric {
+  font-size: 10pt;
+  color: #666;
+}
+
+.dashboard-metric-header,
 .dashboard-metric-caption,
 .chart-caption {
   text-align: center;
@@ -613,7 +638,7 @@ li.report-picker-button.active:hover > a {
 }
 
 body {
-  background-color: #e6e6e6;
+  background-color: #eAeAeA;
 }
 
 html,
