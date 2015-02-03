@@ -13,12 +13,12 @@ var http = function (url, body, callback) {
 config.recruitmentTable = {
     http: http,
     apiKey: 'AIzaSyApVcaHU-Drez2RpLdOu5AUOZeL6tOq6Lk',
-    tableID: '1i_IgJqbs5o3ztZRpe-P6BLZaeok-ioELHszEXEcO'
+    tableID: '1kf670haISDqclzpb_ZkceVVlCwCYo8dcPPZsoYOz'
 };
 config.studyTable = {
     http: http,
     apiKey: 'AIzaSyApVcaHU-Drez2RpLdOu5AUOZeL6tOq6Lk',
-    tableID: '19cPQjIMAIPSRc6FYS0W66hlO3hmsUI4KkQzyVo_M'
+    tableID: '1adGTePb9eSZRhr43gdB6hI0cSxwWZ1ZkjmVf-vlf'
 };
 window.onload = function () {
     Ractive.components = {
@@ -39,6 +39,7 @@ window.onload = function () {
         { title: 'Dashboard', component: require('./dashboard-view') },
         { title: 'Recruitment', component: require('./recruitment-view') },
         { title: 'Time & Target', component: require('./time-target-view') },
+        { title: 'Studies Open To New Sites', component: require('./studies-open-view') },
     ];
     function debugReport() {
         var query = decodeURIComponent(window.location.search.replace(/^\?/, ''));
@@ -62,7 +63,7 @@ window.onload = function () {
 };
 
 
-},{"../lib/reports/config":6,"../lib/ui/chart":10,"../lib/ui/input/button":12,"../lib/ui/input/button-group":11,"../lib/ui/input/check-box":13,"../lib/ui/input/dropdown":14,"../lib/ui/input/field":15,"../lib/ui/rag-proportion-indicator":17,"../lib/ui/rag-value-indicator":18,"../lib/ui/report-picker":19,"../lib/ui/table":20,"./dashboard-view":21,"./recruitment-view":23,"./time-target-view":24,"browser-request":25,"lodash":29,"ractive":31}],2:[function(require,module,exports){
+},{"../lib/reports/config":8,"../lib/ui/chart":13,"../lib/ui/input/button":15,"../lib/ui/input/button-group":14,"../lib/ui/input/check-box":16,"../lib/ui/input/dropdown":17,"../lib/ui/input/field":18,"../lib/ui/rag-proportion-indicator":20,"../lib/ui/rag-value-indicator":21,"../lib/ui/report-picker":22,"../lib/ui/table":23,"./dashboard-view":24,"./recruitment-view":26,"./studies-open-view":27,"./time-target-view":28,"browser-request":29,"lodash":38,"ractive":40}],2:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var _ = require('lodash');
 var moment = require('moment');
@@ -240,7 +241,74 @@ function encodeColumn(col) {
 }
 
 
-},{"../process-rows/rows":4,"lodash":29,"moment":30}],3:[function(require,module,exports){
+},{"../process-rows/rows":6,"lodash":38,"moment":39}],3:[function(require,module,exports){
+/// <reference path='../references.d.ts' />
+var _ = require('lodash');
+function toString(data, options) {
+    var table = formatTable(data, options.columns);
+    return stringifyTable(table);
+}
+exports.toString = toString;
+/**
+    Helpers
+*/
+function formatTable(table, columns) {
+    var header = _.map(columns, formatHeaderField);
+    var body = _.map(table, function (row) { return formatBodyRow(row, columns); });
+    return [header].concat(body);
+}
+function formatBodyRow(row, columns) {
+    return _.map(columns, function (c) { return formatBodyField(row, c); });
+}
+function formatBodyField(row, column) {
+    var value = row[column.key];
+    if (column.format) {
+        return String(column.format(value));
+    }
+    else {
+        return String(value);
+    }
+}
+function formatHeaderField(column) {
+    return column.title ? column.title : column.key;
+}
+function stringifyTable(table) {
+    return _.map(table, stringifyRow).join('\n');
+}
+function stringifyRow(row) {
+    return _.map(row, escapeFieldString).join(',');
+}
+function escapeFieldString(str) {
+    if (str.match(',') || str.match('\n') || str.match('"')) {
+        var escaped = str.replace(/"/g, '""');
+        return '"' + escaped + '"';
+    }
+    else {
+        return str;
+    }
+}
+exports.escapeFieldString = escapeFieldString;
+
+
+},{"lodash":38}],4:[function(require,module,exports){
+/// <reference path='../references.d.ts' />
+var base64 = require('js-base64').Base64;
+function saveDataURI(dataURI, filename) {
+    var element = document.createElement('a');
+    element.setAttribute('href', dataURI);
+    element.setAttribute('download', filename);
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+}
+exports.saveDataURI = saveDataURI;
+function stringDataURI(mime, value) {
+    return ('data:' + mime + ';' + 'base64,' + base64.encode(value));
+}
+exports.stringDataURI = stringDataURI;
+
+
+},{"js-base64":37}],5:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var _ = require('lodash');
 var Row = require('./rows');
@@ -321,7 +389,7 @@ var timeseries;
 })(timeseries = exports.timeseries || (exports.timeseries = {}));
 
 
-},{"./rows":4,"lodash":29}],4:[function(require,module,exports){
+},{"./rows":6,"lodash":38}],6:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var es6_promise = require('es6-promise');
 var _ = require('lodash');
@@ -680,10 +748,24 @@ function join(options) {
 exports.join = join;
 
 
-},{"es6-promise":28,"lodash":29}],5:[function(require,module,exports){
+},{"es6-promise":36,"lodash":38}],7:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
-var Rows = require('../process-rows/rows');
 var moment = require('moment');
+(function (Month) {
+    Month[Month["Jan"] = 0] = "Jan";
+    Month[Month["Feb"] = 1] = "Feb";
+    Month[Month["Mar"] = 2] = "Mar";
+    Month[Month["Apr"] = 3] = "Apr";
+    Month[Month["May"] = 4] = "May";
+    Month[Month["Jun"] = 5] = "Jun";
+    Month[Month["Jul"] = 6] = "Jul";
+    Month[Month["Aug"] = 7] = "Aug";
+    Month[Month["Sep"] = 8] = "Sep";
+    Month[Month["Oct"] = 9] = "Oct";
+    Month[Month["Nov"] = 10] = "Nov";
+    Month[Month["Dec"] = 11] = "Dec";
+})(exports.Month || (exports.Month = {}));
+var Month = exports.Month;
 (function (YearType) {
     YearType[YearType["calendar"] = 0] = "calendar";
     YearType[YearType["financial"] = 1] = "financial";
@@ -695,6 +777,77 @@ var YearType = exports.YearType;
     Granularity[Granularity["monthly"] = 1] = "monthly";
 })(exports.Granularity || (exports.Granularity = {}));
 var Granularity = exports.Granularity;
+/**
+    Time Periods
+*/
+function dateRange(options) {
+    var start = dateAtPeriodStart({
+        date: options.startPeriod,
+        granularity: options.granularity,
+        yearType: options.yearType
+    });
+    var end = add(start, options.granularity, options.duration - 1);
+    var dates = [];
+    for (var d = start; d <= end; d = add(d, options.granularity, 1)) {
+        dates.push(d);
+    }
+    return dates;
+}
+exports.dateRange = dateRange;
+function timePeriod(options) {
+    return function (row) { return dateAtPeriodStart({
+        date: options.ofDate(row),
+        granularity: options.granularity,
+        yearType: options.yearType
+    }); };
+}
+exports.timePeriod = timePeriod;
+// Helpers:
+function dateAtPeriodStart(options) {
+    switch (options.granularity) {
+        case 0 /* annual */:
+            return dateAtYearStart(options.date, options.yearType);
+        case 1 /* monthly */:
+            return firstDateOfMonth(options.date);
+    }
+}
+exports.dateAtPeriodStart = dateAtPeriodStart;
+function dateAtYearStart(date, yearType) {
+    switch (yearType) {
+        case 0 /* calendar */:
+            return firstDateOfYearStartingInMonth(date, 0 /* Jan */);
+        case 1 /* financial */:
+            return firstDateOfYearStartingInMonth(date, 3 /* Apr */);
+        case 2 /* recruitment */:
+            return firstDateOfYearStartingInMonth(date, 9 /* Oct */);
+    }
+}
+exports.dateAtYearStart = dateAtYearStart;
+function firstDateOfYearStartingInMonth(date, month) {
+    if (date < new Date(date.getFullYear(), month, 1)) {
+        return new Date(date.getFullYear() - 1, month, 1);
+    }
+    else {
+        return new Date(date.getFullYear(), month, 1);
+    }
+}
+exports.firstDateOfYearStartingInMonth = firstDateOfYearStartingInMonth;
+function firstDateOfMonth(date) {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+exports.firstDateOfMonth = firstDateOfMonth;
+function add(d, granularity, count) {
+    switch (granularity) {
+        case 0 /* annual */:
+            return moment(d).add(count, 'year').toDate();
+        case 1 /* monthly */:
+            return moment(d).add(count, 'month').toDate();
+    }
+}
+exports.add = add;
+/**
+    Formatting
+*/
 function formatYearType(type) {
     switch (type) {
         case 0 /* calendar */:
@@ -715,28 +868,10 @@ function formatGranularity(gran) {
     }
 }
 exports.formatGranularity = formatGranularity;
-function dateRange(options) {
-    var dates = [];
-    var thisYear = groupByYearType(new Date(), options.yearType).getFullYear();
-    for (var d = new Date(); groupByYearType(d, options.yearType).getFullYear() > (thisYear - options.yearsBack); d = moment(d).subtract('month', 1).toDate()) {
-        dates.push(d);
-    }
-    return dates;
-}
-exports.dateRange = dateRange;
-function timePeriod(options) {
-    function dateTransformer(fn) {
-        return Rows.transformRowQuery(options.ofDate, fn);
-    }
-    switch (options.granularity) {
-        case 0 /* annual */:
-            return dateTransformer(function (date) { return groupByYearType(date, options.yearType); });
-        case 1 /* monthly */:
-            return dateTransformer(function (date) { return groupByMonth(date); });
-    }
-}
-exports.timePeriod = timePeriod;
 function periodFormatter(options) {
+    function yearString(d) {
+        return String(d.getFullYear() % 100) + '-' + String((d.getFullYear() + 1) % 100);
+    }
     switch (options.granularity) {
         case 0 /* annual */:
             {
@@ -744,48 +879,14 @@ function periodFormatter(options) {
             }
         case 1 /* monthly */:
             {
-                return function (d) { return moment(d).format('MMM') + ' ' + yearString(groupByYearType(d, options.yearType)); };
+                return function (d) { return moment(d).format('MMM') + ' ' + yearString(dateAtYearStart(d, options.yearType)); };
             }
     }
 }
 exports.periodFormatter = periodFormatter;
-// Helpers:
-function yearString(d) {
-    return String(d.getFullYear() % 100) + '-' + String((d.getFullYear() + 1) % 100);
-}
-function groupByYearType(date, yearType) {
-    switch (yearType) {
-        case 0 /* calendar */:
-            {
-                return groupByDayInYear(date, 1, 1);
-            }
-        case 1 /* financial */:
-            {
-                return groupByDayInYear(date, 1, 4);
-            }
-        case 2 /* recruitment */:
-            {
-                return groupByDayInYear(date, 1, 10);
-            }
-    }
-}
-exports.groupByYearType = groupByYearType;
-function groupByDayInYear(date, day, month) {
-    if (date < new Date(date.getFullYear(), month - 1, day)) {
-        return new Date(date.getFullYear() - 1, month - 1, day);
-    }
-    else {
-        return new Date(date.getFullYear(), month - 1, day);
-    }
-}
-exports.groupByDayInYear = groupByDayInYear;
-function groupByMonth(date) {
-    return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-exports.groupByMonth = groupByMonth;
 
 
-},{"../process-rows/rows":4,"moment":30}],6:[function(require,module,exports){
+},{"moment":39}],8:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var Fusion = require('../fusion/fusion');
 exports.studyBandWeightings = {
@@ -815,7 +916,7 @@ exports.recruitmentTable = null;
 exports.studyTable;
 
 
-},{"../fusion/fusion":2}],7:[function(require,module,exports){
+},{"../fusion/fusion":2}],9:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var Fusion = require('../fusion/fusion');
 var Rows = require('../process-rows/rows');
@@ -866,7 +967,7 @@ function fetchStudyData(options) {
 exports.fetchStudyData = fetchStudyData;
 
 
-},{"../fusion/fusion":2,"../process-rows/rows":4,"./config":6}],8:[function(require,module,exports){
+},{"../fusion/fusion":2,"../process-rows/rows":6,"./config":8}],10:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var Rows = require('../process-rows/rows');
 var Chart = require('../process-rows/chart');
@@ -930,16 +1031,15 @@ function columnOptions(opts) {
     Analysis:
 */
 function activityReport(options) {
-    var dates = calendar.dateRange({ yearsBack: options.granularity === 0 /* annual */ ? 3 : 1, yearType: options.yearType });
     return Rows.sequence(Rows.fill({
         permutations: {
             Banding: ['Interventional/Both', 'Observational', 'Large'],
-            Month: dates
+            Month: calendar.dateRange(options)
         },
         values: {
             Recruitment: 0
         }
-    }), Rows.filter(function (x) { return x.Month >= _.min(dates); }), Rows.setColumn('WeightedActivity', weightedActivity({ from: 'Recruitment', weightBy: 'Banding' })), Rows.setColumn('Period', calendar.timePeriod({
+    }), Rows.filter(function (x) { return x.Month >= _.min(calendar.dateRange(options)); }), Rows.setColumn('WeightedActivity', weightedActivity({ from: 'Recruitment', weightBy: 'Banding' })), Rows.setColumn('Period', calendar.timePeriod({
         ofDate: Rows.field('Month'),
         granularity: options.granularity,
         yearType: options.yearType
@@ -991,7 +1091,42 @@ function presentChart(options) {
 exports.presentChart = presentChart;
 
 
-},{"../fusion/fusion":2,"../process-rows/chart":3,"../process-rows/rows":4,"./calendar":5,"./config":6,"lodash":29}],9:[function(require,module,exports){
+},{"../fusion/fusion":2,"../process-rows/chart":5,"../process-rows/rows":6,"./calendar":7,"./config":8,"lodash":38}],11:[function(require,module,exports){
+/// <reference path='../references.d.ts' />
+var Rows = require('../process-rows/rows');
+var Fusion = require('../fusion/fusion');
+var moment = require('moment');
+var config = require('./config');
+function studiesOpenToNewSites(opts) {
+    var inclusionFilters = [
+        Fusion.oneOf('ActiveStatus', ['Open', 'In Set-Up NHS Permission Received', 'In Set-Up Pending Permission']),
+        Fusion.equals('CommercialStudy', 'Non-Commercial'),
+        Fusion.like("OpenToNewSites", 'yes'),
+        Fusion.greaterThan('Expected Study End Date', moment().add(120, 'days').toDate())
+    ];
+    var combinedFilter = Fusion.all(opts.drillDownQuery.concat(inclusionFilters));
+    return Rows.sequence(Fusion.select({
+        columns: {
+            StudyTitle: 0 /* string */,
+            // 'id-CSP': Fusion.ColumnType.string,
+            'NIHR Port No': 0 /* string */,
+            MainReportingDivision: 0 /* string */,
+            MainSpecialty: 0 /* string */,
+            ActiveStatus: 0 /* string */,
+            Banding: 0 /* string */,
+            'Expected Study End Date': 2 /* date */,
+            PortfolioQualificationDate: 2 /* date */
+        },
+        from: config.studyTable,
+        where: combinedFilter
+    }), Rows.setColumns({
+        ExpectedStudyEndDate: Rows.field('Expected Study End Date')
+    }), Rows.dropColumns('Expected Study End Date'), Rows.summarize({ over: ['StudyTitle'], where: {} }));
+}
+module.exports = studiesOpenToNewSites;
+
+
+},{"../fusion/fusion":2,"../process-rows/rows":6,"./config":8,"moment":39}],12:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var Rows = require('../process-rows/rows');
 var Fusion = require('../fusion/fusion');
@@ -1011,8 +1146,15 @@ function rag(opts) {
         return 'red';
     };
 }
+function openRAGScore(row) {
+    return row.PercentTarget / row.PercentTime;
+}
 function timeTargetReportCommercialClosed(opts) {
-    var periodStartDate = calendar.groupByYearType(opts.reportingPeriod, 1 /* financial */);
+    var periodStartDate = calendar.dateAtPeriodStart({
+        date: opts.reportingPeriod,
+        yearType: 1 /* financial */,
+        granularity: 0 /* annual */
+    });
     return Rows.sequence(timeTargetData({
         drillDownQuery: opts.drillDownQuery,
         inclusionFilters: [
@@ -1032,8 +1174,32 @@ function timeTargetReportCommercialClosed(opts) {
     }));
 }
 exports.timeTargetReportCommercialClosed = timeTargetReportCommercialClosed;
+function timeTargetReportCommercialOpen(opts) {
+    var periodStartDate = calendar.dateAtPeriodStart({
+        date: opts.reportingPeriod,
+        yearType: 1 /* financial */,
+        granularity: 0 /* annual */
+    });
+    return Rows.sequence(timeTargetData({
+        drillDownQuery: opts.drillDownQuery,
+        inclusionFilters: [
+            Fusion.greaterThanOrEqual('PortfolioQualificationDate', new Date('2010-4-1')),
+            Fusion.greaterThanOrEqual('Local Start Date', new Date('2010-4-1')),
+            Fusion.equals('CommercialStudy', 'Commercial'),
+            Fusion.oneOf('ActiveStatus', ['Open'])
+        ]
+    }), Rows.setColumn('Score', openRAGScore), Rows.setColumn('RAG', rag({
+        field: 'Score',
+        bandings: { amber: 0.7, green: 1.0 }
+    })));
+}
+exports.timeTargetReportCommercialOpen = timeTargetReportCommercialOpen;
 function timeTargetReportNoncommercialClosed(opts) {
-    var periodStartDate = calendar.groupByYearType(opts.reportingPeriod, 2 /* recruitment */);
+    var periodStartDate = calendar.dateAtPeriodStart({
+        date: opts.reportingPeriod,
+        yearType: 2 /* recruitment */,
+        granularity: 0 /* annual */
+    });
     return Rows.sequence(timeTargetData({
         drillDownQuery: opts.drillDownQuery,
         inclusionFilters: [
@@ -1054,10 +1220,33 @@ function timeTargetReportNoncommercialClosed(opts) {
     }));
 }
 exports.timeTargetReportNoncommercialClosed = timeTargetReportNoncommercialClosed;
+function timeTargetReportNoncommercialOpen(opts) {
+    var periodStartDate = calendar.dateAtPeriodStart({
+        date: opts.reportingPeriod,
+        yearType: 2 /* recruitment */,
+        granularity: 0 /* annual */
+    });
+    return Rows.sequence(timeTargetData({
+        drillDownQuery: opts.drillDownQuery,
+        inclusionFilters: [
+            Fusion.greaterThan('PortfolioQualificationDate', new Date('2010-4-1')),
+            Fusion.greaterThanOrEqual('Local Start Date', new Date('2010-4-1')),
+            Fusion.equals('ShouldUploadRecruitmentData', 'Yes'),
+            Fusion.equals('CommercialStudy', 'Non-Commercial'),
+            Fusion.oneOf('ActiveStatus', ['Open'])
+        ]
+    }), Rows.setColumn('Score', openRAGScore), Rows.setColumn('RAG', rag({
+        field: 'Score',
+        bandings: { amber: 0.7, green: 1.0 }
+    })));
+}
+exports.timeTargetReportNoncommercialOpen = timeTargetReportNoncommercialOpen;
 function timeTargetReport(opts) {
     return Rows.union([
         timeTargetReportNoncommercialClosed(opts),
-        timeTargetReportCommercialClosed(opts)
+        timeTargetReportCommercialClosed(opts),
+        timeTargetReportNoncommercialOpen(opts),
+        timeTargetReportCommercialOpen(opts)
     ]);
 }
 exports.timeTargetReport = timeTargetReport;
@@ -1066,8 +1255,11 @@ function timeTargetData(opts) {
     return Rows.sequence(Fusion.select({
         columns: {
             StudyTitle: 0 /* string */,
+            'id-CSP': 0 /* string */,
+            'NIHR Port No': 0 /* string */,
             MainReportingDivision: 0 /* string */,
             MainSpecialty: 0 /* string */,
+            ActiveStatus: 0 /* string */,
             LocalStudyID: 0 /* string */,
             GroupedTrustName: 0 /* string */,
             'Local Start Date': 2 /* date */,
@@ -1091,7 +1283,7 @@ function timeTargetData(opts) {
         }),
         as: 'Recruitment',
         on: { LocalStudyID: 'LocalStudyID' }
-    }), Rows.setColumn('Recruitment', function (row) { return _.reduce(row.Recruitment, function (total, row) { return total + row.Recruitment; }, 0); }), Rows.setColumn('IncompleteInfo', function (row) { return (_.isNaN(row.RecruitmentTarget) || _.isNull(row.ActualStudyEndDate) || _.isNull(row.ExpectedStudyEndDate)) ? true : false; }), Rows.switchColumn('IncompleteInfo', {
+    }), Rows.setColumn('Recruitment', function (row) { return _.reduce(row.Recruitment, function (total, row) { return total + row.Recruitment; }, 0); }), Rows.setColumn('IncompleteInfo', function (row) { return (_.isNaN(row.RecruitmentTarget || row.RecruitmentTarget <= 0) || _.isNull(row.ExpectedStudyEndDate)) ? true : false; }), Rows.switchColumn('IncompleteInfo', {
         true: Rows.setColumns({
             ExpectedDuration: Rows.value(null),
             ActualDuration: Rows.value(null),
@@ -1100,7 +1292,7 @@ function timeTargetData(opts) {
         }),
         false: Rows.sequence(Rows.setColumns({
             ExpectedDuration: function (row) { return moment(row.ExpectedStudyEndDate).diff(moment(row.LocalStartDate), 'days'); },
-            ActualDuration: function (row) { return moment(row.ActualStudyEndDate).diff(moment(row.LocalStartDate), 'days'); }
+            ActualDuration: function (row) { return moment(row.ActualStudyEndDate || new Date()).diff(moment(row.LocalStartDate), 'days'); }
         }), Rows.setColumns({
             PercentTime: function (row) { return row.ActualDuration / row.ExpectedDuration; },
             PercentTarget: function (row) { return row.Recruitment / row.RecruitmentTarget; }
@@ -1127,7 +1319,7 @@ function summarizeRAG() {
 exports.summarizeRAG = summarizeRAG;
 
 
-},{"../fusion/fusion":2,"../process-rows/rows":4,"./calendar":5,"./config":6,"lodash":29,"moment":30}],10:[function(require,module,exports){
+},{"../fusion/fusion":2,"../process-rows/rows":6,"./calendar":7,"./config":8,"lodash":38,"moment":39}],13:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 var Chartist = require('chartist');
@@ -1165,7 +1357,7 @@ var BarChart = Ractive.extend({
 module.exports = BarChart;
 
 
-},{"chartist":27,"lodash":29,"ractive":31}],11:[function(require,module,exports){
+},{"chartist":35,"lodash":38,"ractive":40}],14:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1175,20 +1367,23 @@ var Button = Ractive.extend({
 module.exports = Button;
 
 
-},{"ractive":31}],12:[function(require,module,exports){
+},{"ractive":40}],15:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 
 var Button = Ractive.extend({
-    template: "<button \n\ttype=\"button\" \n\tclass=\"btn btn-{{style || 'default'}} {{size ? 'btn-' + size : '' }}\" \n\tdisabled={{enabled ? '' : 'disabled'}}>\n\n\t{{#icon}}\n\t\t<span class=\"glyphicon glyphicon-{{icon}}\" aria-hidden=\"true\"></span>\n\t{{/}}\n\n\t{{label}}\n</button>\n",
+    template: "<button \n\ttype=\"button\" \n\ton-click=\"handleClicked()\"\n\tclass=\"btn btn-{{style || 'default'}} {{size ? 'btn-' + size : '' }}\" \n\tdisabled={{enabled ? '' : 'disabled'}}>\n\n\t{{#icon}}\n\t\t<span class=\"glyphicon glyphicon-{{icon}}\" aria-hidden=\"true\"></span>\n\t{{/}}\n\n\t{{label}}\n</button>\n",
     data: {
         enabled: true
+    },
+    handleClicked: function () {
+        this.fire('action');
     }
 });
 module.exports = Button;
 
 
-},{"ractive":31}],13:[function(require,module,exports){
+},{"ractive":40}],16:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1202,7 +1397,7 @@ var CheckBox = Ractive.extend({
 module.exports = CheckBox;
 
 
-},{"ractive":31}],14:[function(require,module,exports){
+},{"ractive":40}],17:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 var _ = require('lodash');
@@ -1251,17 +1446,17 @@ var Dropdown = Ractive.extend({
 module.exports = Dropdown;
 
 
-},{"lodash":29,"ractive":31}],15:[function(require,module,exports){
+},{"lodash":38,"ractive":40}],18:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 
 var Field = Ractive.extend({
-    template: "<form class=\"form-inline\">\n  <div class=\"form-group\">\n    <label for={{fieldID}}>{{label}}</label>\n    <input \n    \ttype=\"text\" \n    \tclass=\"form-control {{size ? 'input-' + size : ''}}\" \n    \tid={{fieldID}} \n    \tplaceholder={{placeholder || ''}}\n    \tvalue={{value}}>\n  </div>\n</form>\n"
+    template: "<div class=\"form-group\">\n\t<label for={{fieldID}}>{{label}}</label>\n\t<input \n\t\ttype=\"text\" \n\t\tclass=\"form-control {{size ? 'input-' + size : ''}}\" \n\t\tid={{fieldID}} \n\t\tplaceholder={{placeholder || ''}}\n\t\tvalue={{value}}>\n</div>\n"
 });
 module.exports = Field;
 
 
-},{"ractive":31}],16:[function(require,module,exports){
+},{"ractive":40}],19:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var Row = require('../process-rows/rows');
 var _ = require('lodash');
@@ -1286,6 +1481,7 @@ var Pipeline = (function () {
     return Pipeline;
 })();
 function run(input, map) {
+    map = map || (function (x) { return x; });
     var output = new Pipeline('query(' + input.description + ')');
     input.subscribe(function (request) {
         Row.run(map(request), function (value, error) {
@@ -1375,7 +1571,7 @@ function childSignal(component, key) {
 exports.childSignal = childSignal;
 
 
-},{"../process-rows/rows":4,"lodash":29}],17:[function(require,module,exports){
+},{"../process-rows/rows":6,"lodash":38}],20:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1385,7 +1581,7 @@ var RAGIndicator = Ractive.extend({
 module.exports = RAGIndicator;
 
 
-},{"ractive":31}],18:[function(require,module,exports){
+},{"ractive":40}],21:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1395,7 +1591,7 @@ var RAGIndicator = Ractive.extend({
 module.exports = RAGIndicator;
 
 
-},{"ractive":31}],19:[function(require,module,exports){
+},{"ractive":40}],22:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1432,13 +1628,23 @@ var ReportPicker = Ractive.extend({
 module.exports = ReportPicker;
 
 
-},{"lodash":29,"ractive":31}],20:[function(require,module,exports){
+},{"lodash":38,"ractive":40}],23:[function(require,module,exports){
 /// <reference path='../references.d.ts' />
 var Ractive = require('ractive');
 
 var _ = require('lodash');
+var csv = require('../output/csv');
+var download = require('../output/download');
 var Table = Ractive.extend({
-    template: "<div class='table-responsive'>\n\t<table class='table data-table'>\n\t\t<thead>\n\t\t\t<tr>\n\t\t\t\t{{# columns }}\n\t\t\t\t\t<th class={{ (this.key === sortColumn) ? 'table-sort-column' : '' }}>\n\t\t\t\t\t\t<a role='button' href='#' on-click='handleHeaderClicked(key)'>{{title}}</a>\n\t\t\t\t\t</th>\n\t\t\t\t{{/}}\n\t\t\t</tr>\n\t\t</thead>\n\n\t\t<tbody>\n\t\t\t{{# sortedRows(sortColumn, data, descending) }}\n\t\t\t\t<tr class={{ rowColumnClass(ragColumn, this) }}>\n\t\t\t\t\t{{# cells(this, columns) }}\n\t\t\t\t\t\t<td>\n\t\t\t\t\t\t\t{{this}}\n\t\t\t\t\t\t</td>\n\t\t\t\t\t{{/}}\n\t\t\t\t</tr>\n\t\t\t{{/}}\n\t\t</tbody>\n\t</table>\n</div>\n",
+    template: "<div class='table-responsive'>\n\t{{# !!filename && data && data.length > 15 }}\n\t\t<Button enabled={{data.length > 0}} size='xs' icon='save' on-action='handleDownloadClicked' label='Download'></Button>\n\t{{/}}\n\n\t<table class='table data-table'>\n\t\t<thead>\n\t\t\t<tr>\n\t\t\t\t{{# columns }}\n\t\t\t\t\t<th class={{ (this.key === sortColumn) ? 'table-sort-column' : '' }}>\n\t\t\t\t\t\t<a role='button' href='#' on-click='handleHeaderClicked(key)'>{{title}}</a>\n\t\t\t\t\t</th>\n\t\t\t\t{{/}}\n\t\t\t</tr>\n\t\t</thead>\n\n\t\t<tbody>\n\t\t\t{{# sortedRows(sortColumn, data, descending) }}\n\t\t\t\t<tr class={{ rowColumnClass(ragColumn, this) }}>\n\t\t\t\t\t{{# cells(this, columns) }}\n\t\t\t\t\t\t<td>\n\t\t\t\t\t\t\t{{this}}\n\t\t\t\t\t\t</td>\n\t\t\t\t\t{{/}}\n\t\t\t\t</tr>\n\t\t\t{{/}}\n\t\t</tbody>\n\t</table>\n\n\t{{# !!filename }}\n\t\t<Button enabled={{data.length > 0}} size='xs' icon='save' on-action='handleDownloadClicked' label='Download'></Button>\n\t{{/}}\n</div>\n",
+    onrender: function () {
+        var _this = this;
+        var component = this;
+        component.on('handleDownloadClicked', function () { return _this.handleDownloadClicked(); });
+    },
+    components: {
+        Button: require('./input/button')
+    },
     data: {
         cells: function (row, columns) {
             return _.map(columns, function (col) { return col.format ? col.format(row[col.key]) : row[col.key]; });
@@ -1467,6 +1673,11 @@ var Table = Ractive.extend({
             }
         }
     },
+    handleDownloadClicked: function () {
+        var rows = this.get('data');
+        var text = csv.toString(rows, { columns: this.get('columns') });
+        download.saveDataURI(download.stringDataURI('text/csv', text), this.get('filename'));
+    },
     handleHeaderClicked: function (header) {
         this.set('sortColumn', header);
     }
@@ -1474,7 +1685,7 @@ var Table = Ractive.extend({
 module.exports = Table;
 
 
-},{"lodash":29,"ractive":31}],21:[function(require,module,exports){
+},{"../output/csv":3,"../output/download":4,"./input/button":15,"lodash":38,"ractive":40}],24:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1484,12 +1695,21 @@ var timetarget = require('../lib/reports/time-target');
 var recruitment = require('../lib/reports/recruitment');
 var Rows = require('../lib/process-rows/rows');
 var DashboardView = Ractive.extend({
-    template: "<div class='row dashboard-kpi-row'>\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tIncrease in network-wide recruitment\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<Chart type='Line' data={{hlo1}} height={{200}}></Chart>\n\t</div>\n\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tTime &amp; Target\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2a.red}} amber={{hlo2a.amber}} green={{hlo2a.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2b.red}} amber={{hlo2b.amber}} green={{hlo2b.green}}></RAGProportions>\n\t\t</div>\n\t</div>\n</div>\n",
+    template: "<div class='row dashboard-kpi-row'>\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tNetwork-Wide Recruitment\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<Chart type='Line' data={{hlo1}} height={{200}}></Chart>\n\t</div>\n\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tTime &amp; Target\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2a.red}} amber={{hlo2a.amber}} green={{hlo2a.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2b.red}} amber={{hlo2b.amber}} green={{hlo2b.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of open commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2aOpen.red}} amber={{hlo2aOpen.amber}} green={{hlo2aOpen.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of open non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2bOpen.red}} amber={{hlo2bOpen.amber}} green={{hlo2bOpen.green}}></RAGProportions>\n\t\t</div>\n\t</div>\n</div>\n",
     onrender: function () {
         var hlo1 = query.transform(query.run(query.constant(null), function () {
             return recruitment.performanceGraphs({
-                queries: [{ id: '', divisions: [], commercial: [], specialties: [], trusts: [] }],
-                queryOptions: { yearType: 2 /* recruitment */, granularity: 0 /* annual */, banded: false, weighted: false }
+                queries: [
+                    { id: '', divisions: [], commercial: [], specialties: [], trusts: [] }
+                ],
+                queryOptions: {
+                    yearType: 2 /* recruitment */,
+                    granularity: 0 /* annual */,
+                    banded: false,
+                    weighted: false,
+                    startPeriod: new Date('2012-2-1'),
+                    duration: 3
+                }
             });
         }), function (x) { return x[0]; });
         var hlo2a = query.run(query.constant(null), function () {
@@ -1498,15 +1718,23 @@ var DashboardView = Ractive.extend({
         var hlo2b = query.run(query.constant(null), function () {
             return Rows.sequence(timetarget.timeTargetReportNoncommercialClosed({ drillDownQuery: [], reportingPeriod: new Date() }), timetarget.summarizeRAG());
         });
+        var hlo2aOpen = query.run(query.constant(null), function () {
+            return Rows.sequence(timetarget.timeTargetReportCommercialOpen({ drillDownQuery: [], reportingPeriod: new Date() }), timetarget.summarizeRAG());
+        });
+        var hlo2bOpen = query.run(query.constant(null), function () {
+            return Rows.sequence(timetarget.timeTargetReportNoncommercialOpen({ drillDownQuery: [], reportingPeriod: new Date() }), timetarget.summarizeRAG());
+        });
         query.present(hlo1, this, 'hlo1');
         query.present(hlo2a, this, 'hlo2a');
         query.present(hlo2b, this, 'hlo2b');
+        query.present(hlo2aOpen, this, 'hlo2aOpen');
+        query.present(hlo2bOpen, this, 'hlo2bOpen');
     }
 });
 module.exports = DashboardView;
 
 
-},{"../lib/process-rows/rows":4,"../lib/reports/calendar":5,"../lib/reports/recruitment":8,"../lib/reports/time-target":9,"../lib/ui/query":16,"ractive":31}],22:[function(require,module,exports){
+},{"../lib/process-rows/rows":6,"../lib/reports/calendar":7,"../lib/reports/recruitment":10,"../lib/reports/time-target":12,"../lib/ui/query":19,"ractive":40}],25:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1555,7 +1783,7 @@ var RecruitmentBenchmark = Ractive.extend({
 module.exports = RecruitmentBenchmark;
 
 
-},{"../../lib/reports/datasource":7,"../../lib/ui/query":16,"ractive":31}],23:[function(require,module,exports){
+},{"../../lib/reports/datasource":9,"../../lib/ui/query":19,"ractive":40}],26:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1573,7 +1801,9 @@ var RecruitmentView = Ractive.extend({
                 granularity: query.observe(this, 'granularity'),
                 yearType: query.observe(this, 'yearType'),
                 weighted: query.observe(this, 'weighted'),
-                banded: query.observe(this, 'banded')
+                banded: query.observe(this, 'banded'),
+                startPeriod: query.constant(new Date('2012-1-1')),
+                duration: query.constant(3)
             })
         });
         var captionFromSelection = function (q, options) {
@@ -1618,11 +1848,101 @@ var RecruitmentView = Ractive.extend({
 module.exports = RecruitmentView;
 
 
-},{"../lib/reports/calendar":5,"../lib/reports/recruitment":8,"../lib/ui/query":16,"./recruitment-components/benchmark-chart":22,"lodash":29,"ractive":31}],24:[function(require,module,exports){
+},{"../lib/reports/calendar":7,"../lib/reports/recruitment":10,"../lib/ui/query":19,"./recruitment-components/benchmark-chart":25,"lodash":38,"ractive":40}],27:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
 var _ = require('lodash');
+var moment = require('moment');
+var query = require('../lib/ui/query');
+var datasource = require('../lib/reports/datasource');
+var studiesOpen = require('../lib/reports/studies-open-to-new-sites');
+var Fusion = require('../lib/fusion/fusion');
+function deNull(x) {
+    if (_.isNull(x))
+        return '-';
+    else
+        return x;
+}
+function divisionFormat(x) {
+    return x.replace(/Division /, '');
+}
+function dateFormat(x) {
+    if (_.isNull(x))
+        return 'Unknown';
+    else
+        return moment(x).format('DD/MM/YY');
+}
+var RecruitmentView = Ractive.extend({
+    template: "<div class='row'>\n\t<div class='col-xs-12'>\n\t\t<form class='form-inline'>\n\t\t\t<ButtonGroup>\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Banding: {{formatPicked(banding)}}' options={{bandingOptions}} selection={{banding}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Specialties: {{formatPicked(specialties)}}' options={{specialtyOptions}} selection={{specialties}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Divisions: {{formatPicked(divisions)}}' options={{divisionOptions}} selection={{divisions}}></Dropdown>\n\t\t\t</ButtonGroup>\n\n\t\t\t<Field size='sm' label='Study Title' value={{title}}></Field>\n\t\t\t\n\t\t\t&nbsp;\n\t\t\t\n\t\t\t<Field size='sm' label='Study ID' value={{studyID}}></Field>\n\t\t</form>\n\t</div>\n</div>\n\n<div class='row spacer-row'></div>\n\n<div class='row'>\n\t<div class='col-xs-12'>\n\t\t<Table filename='Studies Open To New Sites.csv' data={{reportData}} columns={{tableColumns}} ragColumn='RAG'></Table>\n\t</div>\n</div>\n",
+    onrender: function () {
+        query.present(query.run(query.constant(null), function () { return datasource.allDivisions(); }), this, 'divisionOptions');
+        query.present(query.run(query.constant(null), function () { return datasource.allSpecialties(); }), this, 'specialtyOptions');
+        query.present(query.constant(['Interventional/Both', 'Observational', 'Large']), this, 'bandingOptions');
+        var request = query.merge({
+            MainSpecialty: query.observe(this, 'specialties'),
+            Banding: query.observe(this, 'banding'),
+            MainReportingDivision: query.observe(this, 'divisions'),
+            StudyTitle: query.observe(this, 'title'),
+            'id-CSP': query.observe(this, 'cspID'),
+            'NIHR Port No': query.observe(this, 'studyID')
+        });
+        var result = query.run(request, function (req) {
+            var filters = _.map(req, function (val, key) {
+                if (val.length > 0) {
+                    if (key === 'StudyTitle')
+                        return Fusion.like(key, val);
+                    else if (key === 'id-CSP')
+                        return Fusion.like(key, val);
+                    else if (key === 'NIHR Port No')
+                        return Fusion.equals(key, val);
+                    else
+                        return Fusion.oneOf(key, val);
+                }
+            });
+            return studiesOpen({
+                drillDownQuery: filters
+            });
+        });
+        query.present(result, this, 'reportData');
+    },
+    data: {
+        specialties: [],
+        banding: [],
+        divisions: [],
+        title: '',
+        studyID: '',
+        cspID: '',
+        divisionOptions: [],
+        specialtyOptions: [],
+        bandingOptions: [],
+        formatPicked: function (picked) {
+            if (!picked || picked.length === 0)
+                return 'All';
+            else
+                return picked.join(', ');
+        },
+        tableColumns: [
+            { key: 'StudyTitle', title: 'Study Title', format: deNull },
+            { key: 'NIHR Port No', title: 'Study ID' },
+            { key: 'MainReportingDivision', title: 'Division', format: divisionFormat },
+            { key: 'MainSpecialty', title: 'Specialty', format: deNull },
+            { key: 'ActiveStatus', title: 'Status', format: deNull },
+            { key: 'Banding', title: 'Banding', format: deNull },
+            { key: 'ExpectedStudyEndDate', title: 'Expected End Date', format: dateFormat },
+            { key: 'PortfolioQualificationDate', title: 'Portfolio Qualification Date', format: dateFormat },
+        ]
+    }
+});
+module.exports = RecruitmentView;
+
+
+},{"../lib/fusion/fusion":2,"../lib/reports/datasource":9,"../lib/reports/studies-open-to-new-sites":11,"../lib/ui/query":19,"lodash":38,"moment":39,"ractive":40}],28:[function(require,module,exports){
+/// <reference path="./references.d.ts" />
+var Ractive = require('ractive');
+
+var _ = require('lodash');
+var moment = require('moment');
 var query = require('../lib/ui/query');
 var datasource = require('../lib/reports/datasource');
 var timetarget = require('../lib/reports/time-target');
@@ -1633,11 +1953,21 @@ function deNull(x) {
     else
         return x;
 }
+function divisionFormat(x) {
+    return x.replace(/Division /, '');
+}
+function dateFormat(x) {
+    if (_.isNull(x))
+        return '-';
+    else
+        return moment(x).format('DD/MM/YY');
+}
 var RecruitmentView = Ractive.extend({
-    template: "<div class='row'>\n\t<div class='col-xs-7'>\n\t\t<ButtonGroup>\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Banding: {{formatPicked(banding)}}' options={{bandingOptions}} selection={{banding}}></Dropdown>\n\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Commercial: {{formatPicked(commercial)}}' options={{commercialOptions}} selection={{commercial}}></Dropdown>\n\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Trusts: {{formatPicked(trusts)}}' options={{trustOptions}} selection={{trusts}}></Dropdown>\n\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Divisions: {{formatPicked(divisions)}}' options={{divisionOptions}} selection={{divisions}}></Dropdown>\n\t\t</ButtonGroup>\n\t</div>\n\t<div class='col-xs-3'>\n\t\t<form class='form-inline'>\n\t\t\t<Field size='sm' label='Study Title' value={{title}}></Field>\n\t\t</form>\n\t</div>\n</div>\n\n<div class='row spacer-row'></div>\n\n<div class='row'>\n\t<div class='col-xs-10'>\n\t\t<Table data={{reportData}} columns={{tableColumns}} ragColumn='RAG'></Table>\n\t</div>\n</div>\n",
+    template: "<div class='row'>\n\t<div class='col-xs-12'>\n\t\t<form class='form-inline'>\n\t\t\t<ButtonGroup>\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Banding: {{formatPicked(banding)}}' options={{bandingOptions}} selection={{banding}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Commercial: {{formatPicked(commercial)}}' options={{commercialOptions}} selection={{commercial}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Trusts: {{formatPicked(trusts)}}' options={{trustOptions}} selection={{trusts}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Divisions: {{formatPicked(divisions)}}' options={{divisionOptions}} selection={{divisions}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Specialties: {{formatPicked(specialties)}}' options={{specialtyOptions}} selection={{specialties}}></Dropdown>\n\t\t\t</ButtonGroup>\n\n\t\t\t&nbsp;\n\t\t\t\t\n\t\t\t<Field size='sm' label='Study Title' value={{title}}></Field>\n\n\t\t\t&nbsp;\n\n\t\t\t<Field size='sm' label='Study ID' value={{studyID}}></Field>\n\n\t\t\t&nbsp;\n\n\t\t\t<Field size='sm' label='CSP ID' value={{cspID}}></Field>\n\t\t</form>\n\t</div>\n</div>\n\n<div class='row spacer-row'></div>\n\n<div class='row'>\n\t<div class='col-xs-12'>\n\t\t<Table filename='Time &amp; Target.csv' data={{reportData}} columns={{tableColumns}} ragColumn='RAG'></Table>\n\t</div>\n</div>\n",
     onrender: function () {
         query.present(query.run(query.constant(null), function () { return datasource.allTrusts(); }), this, 'trustOptions');
         query.present(query.run(query.constant(null), function () { return datasource.allDivisions(); }), this, 'divisionOptions');
+        query.present(query.run(query.constant(null), function () { return datasource.allSpecialties(); }), this, 'specialtyOptions');
         query.present(query.constant(['Commercial', 'Non-Commercial']), this, 'commercialOptions');
         query.present(query.constant(['Interventional/Both', 'Observational', 'Large']), this, 'bandingOptions');
         var request = query.merge({
@@ -1645,13 +1975,20 @@ var RecruitmentView = Ractive.extend({
             CommercialStudy: query.observe(this, 'commercial'),
             Banding: query.observe(this, 'banding'),
             MainReportingDivision: query.observe(this, 'divisions'),
-            StudyTitle: query.observe(this, 'title')
+            MainSpecialty: query.observe(this, 'specialties'),
+            StudyTitle: query.observe(this, 'title'),
+            'id-CSP': query.observe(this, 'cspID'),
+            'NIHR Port No': query.observe(this, 'studyID')
         });
         var result = query.run(request, function (req) {
             var filters = _.map(req, function (val, key) {
                 if (val.length > 0) {
                     if (key === 'StudyTitle')
                         return Fusion.like(key, val);
+                    else if (key === 'id-CSP')
+                        return Fusion.like(key, val);
+                    else if (key === 'NIHR Port No')
+                        return Fusion.equals(key, val);
                     else
                         return Fusion.oneOf(key, val);
                 }
@@ -1668,7 +2005,11 @@ var RecruitmentView = Ractive.extend({
         commercial: [],
         banding: [],
         divisions: [],
+        specialties: [],
         title: '',
+        cspID: '',
+        studyID: '',
+        specialtyOptions: [],
         divisionOptions: [],
         commercialOptions: [],
         trustOptions: [],
@@ -1680,23 +2021,27 @@ var RecruitmentView = Ractive.extend({
                 return picked.join(', ');
         },
         tableColumns: [
-            { key: 'RAG', title: 'RAG', format: deNull },
             { key: 'StudyTitle', title: 'Study Title', format: deNull },
+            { key: 'id-CSP', title: 'CSP ID' },
+            { key: 'NIHR Port No', title: 'Study ID' },
+            { key: 'ActiveStatus', title: 'Status' },
             { key: 'GroupedTrustName', title: 'Trust', format: deNull },
+            { key: 'MainReportingDivision', title: 'Division', format: divisionFormat },
             { key: 'MainSpecialty', title: 'Main Specialty', format: deNull },
-            { key: 'ExpectedStudyEndDate', title: 'Expected End', format: deNull },
-            { key: 'ActualStudyEndDate', title: 'Actual End', format: deNull },
-            { key: 'Recruitment', title: 'Total Recruitment', format: deNull },
-            { key: 'RecruitmentTarget', title: 'Expected Recruitment', format: deNull },
+            { key: 'ExpectedStudyEndDate', title: 'Expected End', format: dateFormat },
+            { key: 'ActualStudyEndDate', title: 'Actual End', format: dateFormat },
+            { key: 'Recruitment', title: 'Total Study Recruitment', format: deNull },
+            { key: 'RecruitmentTarget', title: 'Target Recruitment', format: deNull },
             { key: 'ExpectedDuration', title: 'Expected Duration', format: deNull },
             { key: 'ActualDuration', title: 'Actual Duration', format: deNull },
+            { key: 'RAG', title: 'RAG', format: deNull },
         ]
     }
 });
 module.exports = RecruitmentView;
 
 
-},{"../lib/fusion/fusion":2,"../lib/reports/datasource":7,"../lib/reports/time-target":9,"../lib/ui/query":16,"lodash":29,"ractive":31}],25:[function(require,module,exports){
+},{"../lib/fusion/fusion":2,"../lib/reports/datasource":9,"../lib/reports/time-target":12,"../lib/ui/query":19,"lodash":38,"moment":39,"ractive":40}],29:[function(require,module,exports){
 // Browser Request
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -2192,7 +2537,1572 @@ function b64_enc (data) {
 }));
 //UMD FOOTER END
 
-},{}],26:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
+/*!
+ * The buffer module from node.js, for the browser.
+ *
+ * @author   Feross Aboukhadijeh <feross@feross.org> <http://feross.org>
+ * @license  MIT
+ */
+
+var base64 = require('base64-js')
+var ieee754 = require('ieee754')
+var isArray = require('is-array')
+
+exports.Buffer = Buffer
+exports.SlowBuffer = SlowBuffer
+exports.INSPECT_MAX_BYTES = 50
+Buffer.poolSize = 8192 // not used by this implementation
+
+var kMaxLength = 0x3fffffff
+var rootParent = {}
+
+/**
+ * If `Buffer.TYPED_ARRAY_SUPPORT`:
+ *   === true    Use Uint8Array implementation (fastest)
+ *   === false   Use Object implementation (most compatible, even IE6)
+ *
+ * Browsers that support typed arrays are IE 10+, Firefox 4+, Chrome 7+, Safari 5.1+,
+ * Opera 11.6+, iOS 4.2+.
+ *
+ * Note:
+ *
+ * - Implementation must support adding new properties to `Uint8Array` instances.
+ *   Firefox 4-29 lacked support, fixed in Firefox 30+.
+ *   See: https://bugzilla.mozilla.org/show_bug.cgi?id=695438.
+ *
+ *  - Chrome 9-10 is missing the `TypedArray.prototype.subarray` function.
+ *
+ *  - IE10 has a broken `TypedArray.prototype.subarray` function which returns arrays of
+ *    incorrect length in some situations.
+ *
+ * We detect these buggy browsers and set `Buffer.TYPED_ARRAY_SUPPORT` to `false` so they will
+ * get the Object implementation, which is slower but will work correctly.
+ */
+Buffer.TYPED_ARRAY_SUPPORT = (function () {
+  try {
+    var buf = new ArrayBuffer(0)
+    var arr = new Uint8Array(buf)
+    arr.foo = function () { return 42 }
+    return 42 === arr.foo() && // typed array instances can be augmented
+        typeof arr.subarray === 'function' && // chrome 9-10 lack `subarray`
+        new Uint8Array(1).subarray(1, 1).byteLength === 0 // ie10 has broken `subarray`
+  } catch (e) {
+    return false
+  }
+})()
+
+/**
+ * Class: Buffer
+ * =============
+ *
+ * The Buffer constructor returns instances of `Uint8Array` that are augmented
+ * with function properties for all the node `Buffer` API functions. We use
+ * `Uint8Array` so that square bracket notation works as expected -- it returns
+ * a single octet.
+ *
+ * By augmenting the instances, we can avoid modifying the `Uint8Array`
+ * prototype.
+ */
+function Buffer (subject, encoding, noZero) {
+  if (!(this instanceof Buffer))
+    return new Buffer(subject, encoding, noZero)
+
+  var type = typeof subject
+
+  // Find the length
+  var length
+  if (type === 'number')
+    length = subject > 0 ? subject >>> 0 : 0
+  else if (type === 'string') {
+    length = Buffer.byteLength(subject, encoding)
+  } else if (type === 'object' && subject !== null) { // assume object is array-like
+    if (subject.type === 'Buffer' && isArray(subject.data))
+      subject = subject.data
+    length = +subject.length > 0 ? Math.floor(+subject.length) : 0
+  } else
+    throw new TypeError('must start with number, buffer, array or string')
+
+  if (length > kMaxLength)
+    throw new RangeError('Attempt to allocate Buffer larger than maximum ' +
+      'size: 0x' + kMaxLength.toString(16) + ' bytes')
+
+  var buf
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    // Preferred: Return an augmented `Uint8Array` instance for best performance
+    buf = Buffer._augment(new Uint8Array(length))
+  } else {
+    // Fallback: Return THIS instance of Buffer (created by `new`)
+    buf = this
+    buf.length = length
+    buf._isBuffer = true
+  }
+
+  var i
+  if (Buffer.TYPED_ARRAY_SUPPORT && typeof subject.byteLength === 'number') {
+    // Speed optimization -- use set if we're copying from a typed array
+    buf._set(subject)
+  } else if (isArrayish(subject)) {
+    // Treat array-ish objects as a byte array
+    if (Buffer.isBuffer(subject)) {
+      for (i = 0; i < length; i++)
+        buf[i] = subject.readUInt8(i)
+    } else {
+      for (i = 0; i < length; i++)
+        buf[i] = ((subject[i] % 256) + 256) % 256
+    }
+  } else if (type === 'string') {
+    buf.write(subject, 0, encoding)
+  } else if (type === 'number' && !Buffer.TYPED_ARRAY_SUPPORT && !noZero) {
+    for (i = 0; i < length; i++) {
+      buf[i] = 0
+    }
+  }
+
+  if (length > 0 && length <= Buffer.poolSize)
+    buf.parent = rootParent
+
+  return buf
+}
+
+function SlowBuffer(subject, encoding, noZero) {
+  if (!(this instanceof SlowBuffer))
+    return new SlowBuffer(subject, encoding, noZero)
+
+  var buf = new Buffer(subject, encoding, noZero)
+  delete buf.parent
+  return buf
+}
+
+Buffer.isBuffer = function (b) {
+  return !!(b != null && b._isBuffer)
+}
+
+Buffer.compare = function (a, b) {
+  if (!Buffer.isBuffer(a) || !Buffer.isBuffer(b))
+    throw new TypeError('Arguments must be Buffers')
+
+  var x = a.length
+  var y = b.length
+  for (var i = 0, len = Math.min(x, y); i < len && a[i] === b[i]; i++) {}
+  if (i !== len) {
+    x = a[i]
+    y = b[i]
+  }
+  if (x < y) return -1
+  if (y < x) return 1
+  return 0
+}
+
+Buffer.isEncoding = function (encoding) {
+  switch (String(encoding).toLowerCase()) {
+    case 'hex':
+    case 'utf8':
+    case 'utf-8':
+    case 'ascii':
+    case 'binary':
+    case 'base64':
+    case 'raw':
+    case 'ucs2':
+    case 'ucs-2':
+    case 'utf16le':
+    case 'utf-16le':
+      return true
+    default:
+      return false
+  }
+}
+
+Buffer.concat = function (list, totalLength) {
+  if (!isArray(list)) throw new TypeError('Usage: Buffer.concat(list[, length])')
+
+  if (list.length === 0) {
+    return new Buffer(0)
+  } else if (list.length === 1) {
+    return list[0]
+  }
+
+  var i
+  if (totalLength === undefined) {
+    totalLength = 0
+    for (i = 0; i < list.length; i++) {
+      totalLength += list[i].length
+    }
+  }
+
+  var buf = new Buffer(totalLength)
+  var pos = 0
+  for (i = 0; i < list.length; i++) {
+    var item = list[i]
+    item.copy(buf, pos)
+    pos += item.length
+  }
+  return buf
+}
+
+Buffer.byteLength = function (str, encoding) {
+  var ret
+  str = str + ''
+  switch (encoding || 'utf8') {
+    case 'ascii':
+    case 'binary':
+    case 'raw':
+      ret = str.length
+      break
+    case 'ucs2':
+    case 'ucs-2':
+    case 'utf16le':
+    case 'utf-16le':
+      ret = str.length * 2
+      break
+    case 'hex':
+      ret = str.length >>> 1
+      break
+    case 'utf8':
+    case 'utf-8':
+      ret = utf8ToBytes(str).length
+      break
+    case 'base64':
+      ret = base64ToBytes(str).length
+      break
+    default:
+      ret = str.length
+  }
+  return ret
+}
+
+// pre-set for values that may exist in the future
+Buffer.prototype.length = undefined
+Buffer.prototype.parent = undefined
+
+// toString(encoding, start=0, end=buffer.length)
+Buffer.prototype.toString = function (encoding, start, end) {
+  var loweredCase = false
+
+  start = start >>> 0
+  end = end === undefined || end === Infinity ? this.length : end >>> 0
+
+  if (!encoding) encoding = 'utf8'
+  if (start < 0) start = 0
+  if (end > this.length) end = this.length
+  if (end <= start) return ''
+
+  while (true) {
+    switch (encoding) {
+      case 'hex':
+        return hexSlice(this, start, end)
+
+      case 'utf8':
+      case 'utf-8':
+        return utf8Slice(this, start, end)
+
+      case 'ascii':
+        return asciiSlice(this, start, end)
+
+      case 'binary':
+        return binarySlice(this, start, end)
+
+      case 'base64':
+        return base64Slice(this, start, end)
+
+      case 'ucs2':
+      case 'ucs-2':
+      case 'utf16le':
+      case 'utf-16le':
+        return utf16leSlice(this, start, end)
+
+      default:
+        if (loweredCase)
+          throw new TypeError('Unknown encoding: ' + encoding)
+        encoding = (encoding + '').toLowerCase()
+        loweredCase = true
+    }
+  }
+}
+
+Buffer.prototype.equals = function (b) {
+  if (!Buffer.isBuffer(b)) throw new TypeError('Argument must be a Buffer')
+  return Buffer.compare(this, b) === 0
+}
+
+Buffer.prototype.inspect = function () {
+  var str = ''
+  var max = exports.INSPECT_MAX_BYTES
+  if (this.length > 0) {
+    str = this.toString('hex', 0, max).match(/.{2}/g).join(' ')
+    if (this.length > max)
+      str += ' ... '
+  }
+  return '<Buffer ' + str + '>'
+}
+
+Buffer.prototype.compare = function (b) {
+  if (!Buffer.isBuffer(b)) throw new TypeError('Argument must be a Buffer')
+  return Buffer.compare(this, b)
+}
+
+// `get` will be removed in Node 0.13+
+Buffer.prototype.get = function (offset) {
+  console.log('.get() is deprecated. Access using array indexes instead.')
+  return this.readUInt8(offset)
+}
+
+// `set` will be removed in Node 0.13+
+Buffer.prototype.set = function (v, offset) {
+  console.log('.set() is deprecated. Access using array indexes instead.')
+  return this.writeUInt8(v, offset)
+}
+
+function hexWrite (buf, string, offset, length) {
+  offset = Number(offset) || 0
+  var remaining = buf.length - offset
+  if (!length) {
+    length = remaining
+  } else {
+    length = Number(length)
+    if (length > remaining) {
+      length = remaining
+    }
+  }
+
+  // must be an even number of digits
+  var strLen = string.length
+  if (strLen % 2 !== 0) throw new Error('Invalid hex string')
+
+  if (length > strLen / 2) {
+    length = strLen / 2
+  }
+  for (var i = 0; i < length; i++) {
+    var byte = parseInt(string.substr(i * 2, 2), 16)
+    if (isNaN(byte)) throw new Error('Invalid hex string')
+    buf[offset + i] = byte
+  }
+  return i
+}
+
+function utf8Write (buf, string, offset, length) {
+  var charsWritten = blitBuffer(utf8ToBytes(string, buf.length - offset), buf, offset, length)
+  return charsWritten
+}
+
+function asciiWrite (buf, string, offset, length) {
+  var charsWritten = blitBuffer(asciiToBytes(string), buf, offset, length)
+  return charsWritten
+}
+
+function binaryWrite (buf, string, offset, length) {
+  return asciiWrite(buf, string, offset, length)
+}
+
+function base64Write (buf, string, offset, length) {
+  var charsWritten = blitBuffer(base64ToBytes(string), buf, offset, length)
+  return charsWritten
+}
+
+function utf16leWrite (buf, string, offset, length) {
+  var charsWritten = blitBuffer(utf16leToBytes(string, buf.length - offset), buf, offset, length, 2)
+  return charsWritten
+}
+
+Buffer.prototype.write = function (string, offset, length, encoding) {
+  // Support both (string, offset, length, encoding)
+  // and the legacy (string, encoding, offset, length)
+  if (isFinite(offset)) {
+    if (!isFinite(length)) {
+      encoding = length
+      length = undefined
+    }
+  } else {  // legacy
+    var swap = encoding
+    encoding = offset
+    offset = length
+    length = swap
+  }
+
+  offset = Number(offset) || 0
+
+  if (length < 0 || offset < 0 || offset > this.length)
+    throw new RangeError('attempt to write outside buffer bounds');
+
+  var remaining = this.length - offset
+  if (!length) {
+    length = remaining
+  } else {
+    length = Number(length)
+    if (length > remaining) {
+      length = remaining
+    }
+  }
+  encoding = String(encoding || 'utf8').toLowerCase()
+
+  var ret
+  switch (encoding) {
+    case 'hex':
+      ret = hexWrite(this, string, offset, length)
+      break
+    case 'utf8':
+    case 'utf-8':
+      ret = utf8Write(this, string, offset, length)
+      break
+    case 'ascii':
+      ret = asciiWrite(this, string, offset, length)
+      break
+    case 'binary':
+      ret = binaryWrite(this, string, offset, length)
+      break
+    case 'base64':
+      ret = base64Write(this, string, offset, length)
+      break
+    case 'ucs2':
+    case 'ucs-2':
+    case 'utf16le':
+    case 'utf-16le':
+      ret = utf16leWrite(this, string, offset, length)
+      break
+    default:
+      throw new TypeError('Unknown encoding: ' + encoding)
+  }
+  return ret
+}
+
+Buffer.prototype.toJSON = function () {
+  return {
+    type: 'Buffer',
+    data: Array.prototype.slice.call(this._arr || this, 0)
+  }
+}
+
+function base64Slice (buf, start, end) {
+  if (start === 0 && end === buf.length) {
+    return base64.fromByteArray(buf)
+  } else {
+    return base64.fromByteArray(buf.slice(start, end))
+  }
+}
+
+function utf8Slice (buf, start, end) {
+  var res = ''
+  var tmp = ''
+  end = Math.min(buf.length, end)
+
+  for (var i = start; i < end; i++) {
+    if (buf[i] <= 0x7F) {
+      res += decodeUtf8Char(tmp) + String.fromCharCode(buf[i])
+      tmp = ''
+    } else {
+      tmp += '%' + buf[i].toString(16)
+    }
+  }
+
+  return res + decodeUtf8Char(tmp)
+}
+
+function asciiSlice (buf, start, end) {
+  var ret = ''
+  end = Math.min(buf.length, end)
+
+  for (var i = start; i < end; i++) {
+    ret += String.fromCharCode(buf[i] & 0x7F)
+  }
+  return ret
+}
+
+function binarySlice (buf, start, end) {
+  var ret = ''
+  end = Math.min(buf.length, end)
+
+  for (var i = start; i < end; i++) {
+    ret += String.fromCharCode(buf[i])
+  }
+  return ret
+}
+
+function hexSlice (buf, start, end) {
+  var len = buf.length
+
+  if (!start || start < 0) start = 0
+  if (!end || end < 0 || end > len) end = len
+
+  var out = ''
+  for (var i = start; i < end; i++) {
+    out += toHex(buf[i])
+  }
+  return out
+}
+
+function utf16leSlice (buf, start, end) {
+  var bytes = buf.slice(start, end)
+  var res = ''
+  for (var i = 0; i < bytes.length; i += 2) {
+    res += String.fromCharCode(bytes[i] + bytes[i + 1] * 256)
+  }
+  return res
+}
+
+Buffer.prototype.slice = function (start, end) {
+  var len = this.length
+  start = ~~start
+  end = end === undefined ? len : ~~end
+
+  if (start < 0) {
+    start += len;
+    if (start < 0)
+      start = 0
+  } else if (start > len) {
+    start = len
+  }
+
+  if (end < 0) {
+    end += len
+    if (end < 0)
+      end = 0
+  } else if (end > len) {
+    end = len
+  }
+
+  if (end < start)
+    end = start
+
+  var newBuf
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    newBuf = Buffer._augment(this.subarray(start, end))
+  } else {
+    var sliceLen = end - start
+    newBuf = new Buffer(sliceLen, undefined, true)
+    for (var i = 0; i < sliceLen; i++) {
+      newBuf[i] = this[i + start]
+    }
+  }
+
+  if (newBuf.length)
+    newBuf.parent = this.parent || this
+
+  return newBuf
+}
+
+/*
+ * Need to make sure that buffer isn't trying to write out of bounds.
+ */
+function checkOffset (offset, ext, length) {
+  if ((offset % 1) !== 0 || offset < 0)
+    throw new RangeError('offset is not uint')
+  if (offset + ext > length)
+    throw new RangeError('Trying to access beyond buffer length')
+}
+
+Buffer.prototype.readUIntLE = function (offset, byteLength, noAssert) {
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkOffset(offset, byteLength, this.length)
+
+  var val = this[offset]
+  var mul = 1
+  var i = 0
+  while (++i < byteLength && (mul *= 0x100))
+    val += this[offset + i] * mul
+
+  return val
+}
+
+Buffer.prototype.readUIntBE = function (offset, byteLength, noAssert) {
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkOffset(offset, byteLength, this.length)
+
+  var val = this[offset + --byteLength]
+  var mul = 1
+  while (byteLength > 0 && (mul *= 0x100))
+    val += this[offset + --byteLength] * mul;
+
+  return val
+}
+
+Buffer.prototype.readUInt8 = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 1, this.length)
+  return this[offset]
+}
+
+Buffer.prototype.readUInt16LE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 2, this.length)
+  return this[offset] | (this[offset + 1] << 8)
+}
+
+Buffer.prototype.readUInt16BE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 2, this.length)
+  return (this[offset] << 8) | this[offset + 1]
+}
+
+Buffer.prototype.readUInt32LE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 4, this.length)
+
+  return ((this[offset]) |
+      (this[offset + 1] << 8) |
+      (this[offset + 2] << 16)) +
+      (this[offset + 3] * 0x1000000)
+}
+
+Buffer.prototype.readUInt32BE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 4, this.length)
+
+  return (this[offset] * 0x1000000) +
+      ((this[offset + 1] << 16) |
+      (this[offset + 2] << 8) |
+      this[offset + 3])
+}
+
+Buffer.prototype.readIntLE = function (offset, byteLength, noAssert) {
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkOffset(offset, byteLength, this.length)
+
+  var val = this[offset]
+  var mul = 1
+  var i = 0
+  while (++i < byteLength && (mul *= 0x100))
+    val += this[offset + i] * mul
+  mul *= 0x80
+
+  if (val >= mul)
+    val -= Math.pow(2, 8 * byteLength)
+
+  return val
+}
+
+Buffer.prototype.readIntBE = function (offset, byteLength, noAssert) {
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkOffset(offset, byteLength, this.length)
+
+  var i = byteLength
+  var mul = 1
+  var val = this[offset + --i]
+  while (i > 0 && (mul *= 0x100))
+    val += this[offset + --i] * mul
+  mul *= 0x80
+
+  if (val >= mul)
+    val -= Math.pow(2, 8 * byteLength)
+
+  return val
+}
+
+Buffer.prototype.readInt8 = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 1, this.length)
+  if (!(this[offset] & 0x80))
+    return (this[offset])
+  return ((0xff - this[offset] + 1) * -1)
+}
+
+Buffer.prototype.readInt16LE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 2, this.length)
+  var val = this[offset] | (this[offset + 1] << 8)
+  return (val & 0x8000) ? val | 0xFFFF0000 : val
+}
+
+Buffer.prototype.readInt16BE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 2, this.length)
+  var val = this[offset + 1] | (this[offset] << 8)
+  return (val & 0x8000) ? val | 0xFFFF0000 : val
+}
+
+Buffer.prototype.readInt32LE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 4, this.length)
+
+  return (this[offset]) |
+      (this[offset + 1] << 8) |
+      (this[offset + 2] << 16) |
+      (this[offset + 3] << 24)
+}
+
+Buffer.prototype.readInt32BE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 4, this.length)
+
+  return (this[offset] << 24) |
+      (this[offset + 1] << 16) |
+      (this[offset + 2] << 8) |
+      (this[offset + 3])
+}
+
+Buffer.prototype.readFloatLE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 4, this.length)
+  return ieee754.read(this, offset, true, 23, 4)
+}
+
+Buffer.prototype.readFloatBE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 4, this.length)
+  return ieee754.read(this, offset, false, 23, 4)
+}
+
+Buffer.prototype.readDoubleLE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 8, this.length)
+  return ieee754.read(this, offset, true, 52, 8)
+}
+
+Buffer.prototype.readDoubleBE = function (offset, noAssert) {
+  if (!noAssert)
+    checkOffset(offset, 8, this.length)
+  return ieee754.read(this, offset, false, 52, 8)
+}
+
+function checkInt (buf, value, offset, ext, max, min) {
+  if (!Buffer.isBuffer(buf)) throw new TypeError('buffer must be a Buffer instance')
+  if (value > max || value < min) throw new RangeError('value is out of bounds')
+  if (offset + ext > buf.length) throw new RangeError('index out of range')
+}
+
+Buffer.prototype.writeUIntLE = function (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, byteLength, Math.pow(2, 8 * byteLength), 0)
+
+  var mul = 1
+  var i = 0
+  this[offset] = value & 0xFF
+  while (++i < byteLength && (mul *= 0x100))
+    this[offset + i] = (value / mul) >>> 0 & 0xFF
+
+  return offset + byteLength
+}
+
+Buffer.prototype.writeUIntBE = function (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, byteLength, Math.pow(2, 8 * byteLength), 0)
+
+  var i = byteLength - 1
+  var mul = 1
+  this[offset + i] = value & 0xFF
+  while (--i >= 0 && (mul *= 0x100))
+    this[offset + i] = (value / mul) >>> 0 & 0xFF
+
+  return offset + byteLength
+}
+
+Buffer.prototype.writeUInt8 = function (value, offset, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, 1, 0xff, 0)
+  if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value)
+  this[offset] = value
+  return offset + 1
+}
+
+function objectWriteUInt16 (buf, value, offset, littleEndian) {
+  if (value < 0) value = 0xffff + value + 1
+  for (var i = 0, j = Math.min(buf.length - offset, 2); i < j; i++) {
+    buf[offset + i] = (value & (0xff << (8 * (littleEndian ? i : 1 - i)))) >>>
+      (littleEndian ? i : 1 - i) * 8
+  }
+}
+
+Buffer.prototype.writeUInt16LE = function (value, offset, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, 2, 0xffff, 0)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = value
+    this[offset + 1] = (value >>> 8)
+  } else objectWriteUInt16(this, value, offset, true)
+  return offset + 2
+}
+
+Buffer.prototype.writeUInt16BE = function (value, offset, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, 2, 0xffff, 0)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = (value >>> 8)
+    this[offset + 1] = value
+  } else objectWriteUInt16(this, value, offset, false)
+  return offset + 2
+}
+
+function objectWriteUInt32 (buf, value, offset, littleEndian) {
+  if (value < 0) value = 0xffffffff + value + 1
+  for (var i = 0, j = Math.min(buf.length - offset, 4); i < j; i++) {
+    buf[offset + i] = (value >>> (littleEndian ? i : 3 - i) * 8) & 0xff
+  }
+}
+
+Buffer.prototype.writeUInt32LE = function (value, offset, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, 4, 0xffffffff, 0)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset + 3] = (value >>> 24)
+    this[offset + 2] = (value >>> 16)
+    this[offset + 1] = (value >>> 8)
+    this[offset] = value
+  } else objectWriteUInt32(this, value, offset, true)
+  return offset + 4
+}
+
+Buffer.prototype.writeUInt32BE = function (value, offset, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, 4, 0xffffffff, 0)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = (value >>> 24)
+    this[offset + 1] = (value >>> 16)
+    this[offset + 2] = (value >>> 8)
+    this[offset + 3] = value
+  } else objectWriteUInt32(this, value, offset, false)
+  return offset + 4
+}
+
+Buffer.prototype.writeIntLE = function (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert) {
+    checkInt(this,
+             value,
+             offset,
+             byteLength,
+             Math.pow(2, 8 * byteLength - 1) - 1,
+             -Math.pow(2, 8 * byteLength - 1))
+  }
+
+  var i = 0
+  var mul = 1
+  var sub = value < 0 ? 1 : 0
+  this[offset] = value & 0xFF
+  while (++i < byteLength && (mul *= 0x100))
+    this[offset + i] = ((value / mul) >> 0) - sub & 0xFF
+
+  return offset + byteLength
+}
+
+Buffer.prototype.writeIntBE = function (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert) {
+    checkInt(this,
+             value,
+             offset,
+             byteLength,
+             Math.pow(2, 8 * byteLength - 1) - 1,
+             -Math.pow(2, 8 * byteLength - 1))
+  }
+
+  var i = byteLength - 1
+  var mul = 1
+  var sub = value < 0 ? 1 : 0
+  this[offset + i] = value & 0xFF
+  while (--i >= 0 && (mul *= 0x100))
+    this[offset + i] = ((value / mul) >> 0) - sub & 0xFF
+
+  return offset + byteLength
+}
+
+Buffer.prototype.writeInt8 = function (value, offset, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, 1, 0x7f, -0x80)
+  if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value)
+  if (value < 0) value = 0xff + value + 1
+  this[offset] = value
+  return offset + 1
+}
+
+Buffer.prototype.writeInt16LE = function (value, offset, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, 2, 0x7fff, -0x8000)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = value
+    this[offset + 1] = (value >>> 8)
+  } else objectWriteUInt16(this, value, offset, true)
+  return offset + 2
+}
+
+Buffer.prototype.writeInt16BE = function (value, offset, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, 2, 0x7fff, -0x8000)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = (value >>> 8)
+    this[offset + 1] = value
+  } else objectWriteUInt16(this, value, offset, false)
+  return offset + 2
+}
+
+Buffer.prototype.writeInt32LE = function (value, offset, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = value
+    this[offset + 1] = (value >>> 8)
+    this[offset + 2] = (value >>> 16)
+    this[offset + 3] = (value >>> 24)
+  } else objectWriteUInt32(this, value, offset, true)
+  return offset + 4
+}
+
+Buffer.prototype.writeInt32BE = function (value, offset, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000)
+  if (value < 0) value = 0xffffffff + value + 1
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = (value >>> 24)
+    this[offset + 1] = (value >>> 16)
+    this[offset + 2] = (value >>> 8)
+    this[offset + 3] = value
+  } else objectWriteUInt32(this, value, offset, false)
+  return offset + 4
+}
+
+function checkIEEE754 (buf, value, offset, ext, max, min) {
+  if (value > max || value < min) throw new RangeError('value is out of bounds')
+  if (offset + ext > buf.length) throw new RangeError('index out of range')
+  if (offset < 0) throw new RangeError('index out of range')
+}
+
+function writeFloat (buf, value, offset, littleEndian, noAssert) {
+  if (!noAssert)
+    checkIEEE754(buf, value, offset, 4, 3.4028234663852886e+38, -3.4028234663852886e+38)
+  ieee754.write(buf, value, offset, littleEndian, 23, 4)
+  return offset + 4
+}
+
+Buffer.prototype.writeFloatLE = function (value, offset, noAssert) {
+  return writeFloat(this, value, offset, true, noAssert)
+}
+
+Buffer.prototype.writeFloatBE = function (value, offset, noAssert) {
+  return writeFloat(this, value, offset, false, noAssert)
+}
+
+function writeDouble (buf, value, offset, littleEndian, noAssert) {
+  if (!noAssert)
+    checkIEEE754(buf, value, offset, 8, 1.7976931348623157E+308, -1.7976931348623157E+308)
+  ieee754.write(buf, value, offset, littleEndian, 52, 8)
+  return offset + 8
+}
+
+Buffer.prototype.writeDoubleLE = function (value, offset, noAssert) {
+  return writeDouble(this, value, offset, true, noAssert)
+}
+
+Buffer.prototype.writeDoubleBE = function (value, offset, noAssert) {
+  return writeDouble(this, value, offset, false, noAssert)
+}
+
+// copy(targetBuffer, targetStart=0, sourceStart=0, sourceEnd=buffer.length)
+Buffer.prototype.copy = function (target, target_start, start, end) {
+  var source = this
+
+  if (!start) start = 0
+  if (!end && end !== 0) end = this.length
+  if (target_start >= target.length) target_start = target.length
+  if (!target_start) target_start = 0
+  if (end > 0 && end < start) end = start
+
+  // Copy 0 bytes; we're done
+  if (end === start) return 0
+  if (target.length === 0 || source.length === 0) return 0
+
+  // Fatal error conditions
+  if (target_start < 0)
+    throw new RangeError('targetStart out of bounds')
+  if (start < 0 || start >= source.length) throw new RangeError('sourceStart out of bounds')
+  if (end < 0) throw new RangeError('sourceEnd out of bounds')
+
+  // Are we oob?
+  if (end > this.length)
+    end = this.length
+  if (target.length - target_start < end - start)
+    end = target.length - target_start + start
+
+  var len = end - start
+
+  if (len < 1000 || !Buffer.TYPED_ARRAY_SUPPORT) {
+    for (var i = 0; i < len; i++) {
+      target[i + target_start] = this[i + start]
+    }
+  } else {
+    target._set(this.subarray(start, start + len), target_start)
+  }
+
+  return len
+}
+
+// fill(value, start=0, end=buffer.length)
+Buffer.prototype.fill = function (value, start, end) {
+  if (!value) value = 0
+  if (!start) start = 0
+  if (!end) end = this.length
+
+  if (end < start) throw new RangeError('end < start')
+
+  // Fill 0 bytes; we're done
+  if (end === start) return
+  if (this.length === 0) return
+
+  if (start < 0 || start >= this.length) throw new RangeError('start out of bounds')
+  if (end < 0 || end > this.length) throw new RangeError('end out of bounds')
+
+  var i
+  if (typeof value === 'number') {
+    for (i = start; i < end; i++) {
+      this[i] = value
+    }
+  } else {
+    var bytes = utf8ToBytes(value.toString())
+    var len = bytes.length
+    for (i = start; i < end; i++) {
+      this[i] = bytes[i % len]
+    }
+  }
+
+  return this
+}
+
+/**
+ * Creates a new `ArrayBuffer` with the *copied* memory of the buffer instance.
+ * Added in Node 0.12. Only available in browsers that support ArrayBuffer.
+ */
+Buffer.prototype.toArrayBuffer = function () {
+  if (typeof Uint8Array !== 'undefined') {
+    if (Buffer.TYPED_ARRAY_SUPPORT) {
+      return (new Buffer(this)).buffer
+    } else {
+      var buf = new Uint8Array(this.length)
+      for (var i = 0, len = buf.length; i < len; i += 1) {
+        buf[i] = this[i]
+      }
+      return buf.buffer
+    }
+  } else {
+    throw new TypeError('Buffer.toArrayBuffer not supported in this browser')
+  }
+}
+
+// HELPER FUNCTIONS
+// ================
+
+var BP = Buffer.prototype
+
+/**
+ * Augment a Uint8Array *instance* (not the Uint8Array class!) with Buffer methods
+ */
+Buffer._augment = function (arr) {
+  arr.constructor = Buffer
+  arr._isBuffer = true
+
+  // save reference to original Uint8Array get/set methods before overwriting
+  arr._get = arr.get
+  arr._set = arr.set
+
+  // deprecated, will be removed in node 0.13+
+  arr.get = BP.get
+  arr.set = BP.set
+
+  arr.write = BP.write
+  arr.toString = BP.toString
+  arr.toLocaleString = BP.toString
+  arr.toJSON = BP.toJSON
+  arr.equals = BP.equals
+  arr.compare = BP.compare
+  arr.copy = BP.copy
+  arr.slice = BP.slice
+  arr.readUIntLE = BP.readUIntLE
+  arr.readUIntBE = BP.readUIntBE
+  arr.readUInt8 = BP.readUInt8
+  arr.readUInt16LE = BP.readUInt16LE
+  arr.readUInt16BE = BP.readUInt16BE
+  arr.readUInt32LE = BP.readUInt32LE
+  arr.readUInt32BE = BP.readUInt32BE
+  arr.readIntLE = BP.readIntLE
+  arr.readIntBE = BP.readIntBE
+  arr.readInt8 = BP.readInt8
+  arr.readInt16LE = BP.readInt16LE
+  arr.readInt16BE = BP.readInt16BE
+  arr.readInt32LE = BP.readInt32LE
+  arr.readInt32BE = BP.readInt32BE
+  arr.readFloatLE = BP.readFloatLE
+  arr.readFloatBE = BP.readFloatBE
+  arr.readDoubleLE = BP.readDoubleLE
+  arr.readDoubleBE = BP.readDoubleBE
+  arr.writeUInt8 = BP.writeUInt8
+  arr.writeUIntLE = BP.writeUIntLE
+  arr.writeUIntBE = BP.writeUIntBE
+  arr.writeUInt16LE = BP.writeUInt16LE
+  arr.writeUInt16BE = BP.writeUInt16BE
+  arr.writeUInt32LE = BP.writeUInt32LE
+  arr.writeUInt32BE = BP.writeUInt32BE
+  arr.writeIntLE = BP.writeIntLE
+  arr.writeIntBE = BP.writeIntBE
+  arr.writeInt8 = BP.writeInt8
+  arr.writeInt16LE = BP.writeInt16LE
+  arr.writeInt16BE = BP.writeInt16BE
+  arr.writeInt32LE = BP.writeInt32LE
+  arr.writeInt32BE = BP.writeInt32BE
+  arr.writeFloatLE = BP.writeFloatLE
+  arr.writeFloatBE = BP.writeFloatBE
+  arr.writeDoubleLE = BP.writeDoubleLE
+  arr.writeDoubleBE = BP.writeDoubleBE
+  arr.fill = BP.fill
+  arr.inspect = BP.inspect
+  arr.toArrayBuffer = BP.toArrayBuffer
+
+  return arr
+}
+
+var INVALID_BASE64_RE = /[^+\/0-9A-z\-]/g
+
+function base64clean (str) {
+  // Node strips out invalid characters like \n and \t from the string, base64-js does not
+  str = stringtrim(str).replace(INVALID_BASE64_RE, '')
+  // Node converts strings with length < 2 to ''
+  if (str.length < 2) return ''
+  // Node allows for non-padded base64 strings (missing trailing ===), base64-js does not
+  while (str.length % 4 !== 0) {
+    str = str + '='
+  }
+  return str
+}
+
+function stringtrim (str) {
+  if (str.trim) return str.trim()
+  return str.replace(/^\s+|\s+$/g, '')
+}
+
+function isArrayish (subject) {
+  return isArray(subject) || Buffer.isBuffer(subject) ||
+      subject && typeof subject === 'object' &&
+      typeof subject.length === 'number'
+}
+
+function toHex (n) {
+  if (n < 16) return '0' + n.toString(16)
+  return n.toString(16)
+}
+
+function utf8ToBytes(string, units) {
+  var codePoint, length = string.length
+  var leadSurrogate = null
+  units = units || Infinity
+  var bytes = []
+  var i = 0
+
+  for (; i<length; i++) {
+    codePoint = string.charCodeAt(i)
+
+    // is surrogate component
+    if (codePoint > 0xD7FF && codePoint < 0xE000) {
+
+      // last char was a lead
+      if (leadSurrogate) {
+
+        // 2 leads in a row
+        if (codePoint < 0xDC00) {
+          if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+          leadSurrogate = codePoint
+          continue
+        }
+
+        // valid surrogate pair
+        else {
+          codePoint = leadSurrogate - 0xD800 << 10 | codePoint - 0xDC00 | 0x10000
+          leadSurrogate = null
+        }
+      }
+
+      // no lead yet
+      else {
+
+        // unexpected trail
+        if (codePoint > 0xDBFF) {
+          if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+          continue
+        }
+
+        // unpaired lead
+        else if (i + 1 === length) {
+          if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+          continue
+        }
+
+        // valid lead
+        else {
+          leadSurrogate = codePoint
+          continue
+        }
+      }
+    }
+
+    // valid bmp char, but last char was a lead
+    else if (leadSurrogate) {
+      if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+      leadSurrogate = null
+    }
+
+    // encode utf8
+    if (codePoint < 0x80) {
+      if ((units -= 1) < 0) break
+      bytes.push(codePoint)
+    }
+    else if (codePoint < 0x800) {
+      if ((units -= 2) < 0) break
+      bytes.push(
+        codePoint >> 0x6 | 0xC0,
+        codePoint & 0x3F | 0x80
+      );
+    }
+    else if (codePoint < 0x10000) {
+      if ((units -= 3) < 0) break
+      bytes.push(
+        codePoint >> 0xC | 0xE0,
+        codePoint >> 0x6 & 0x3F | 0x80,
+        codePoint & 0x3F | 0x80
+      );
+    }
+    else if (codePoint < 0x200000) {
+      if ((units -= 4) < 0) break
+      bytes.push(
+        codePoint >> 0x12 | 0xF0,
+        codePoint >> 0xC & 0x3F | 0x80,
+        codePoint >> 0x6 & 0x3F | 0x80,
+        codePoint & 0x3F | 0x80
+      );
+    }
+    else {
+      throw new Error('Invalid code point')
+    }
+  }
+
+  return bytes
+}
+
+function asciiToBytes (str) {
+  var byteArray = []
+  for (var i = 0; i < str.length; i++) {
+    // Node's code seems to be doing this and not & 0x7F..
+    byteArray.push(str.charCodeAt(i) & 0xFF)
+  }
+  return byteArray
+}
+
+function utf16leToBytes (str, units) {
+  var c, hi, lo
+  var byteArray = []
+  for (var i = 0; i < str.length; i++) {
+
+    if ((units -= 2) < 0) break
+
+    c = str.charCodeAt(i)
+    hi = c >> 8
+    lo = c % 256
+    byteArray.push(lo)
+    byteArray.push(hi)
+  }
+
+  return byteArray
+}
+
+function base64ToBytes (str) {
+  return base64.toByteArray(base64clean(str))
+}
+
+function blitBuffer (src, dst, offset, length, unitSize) {
+  if (unitSize) length -= length % unitSize;
+  for (var i = 0; i < length; i++) {
+    if ((i + offset >= dst.length) || (i >= src.length))
+      break
+    dst[i + offset] = src[i]
+  }
+  return i
+}
+
+function decodeUtf8Char (str) {
+  try {
+    return decodeURIComponent(str)
+  } catch (err) {
+    return String.fromCharCode(0xFFFD) // UTF 8 invalid char
+  }
+}
+
+},{"base64-js":31,"ieee754":32,"is-array":33}],31:[function(require,module,exports){
+var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+;(function (exports) {
+	'use strict';
+
+  var Arr = (typeof Uint8Array !== 'undefined')
+    ? Uint8Array
+    : Array
+
+	var PLUS   = '+'.charCodeAt(0)
+	var SLASH  = '/'.charCodeAt(0)
+	var NUMBER = '0'.charCodeAt(0)
+	var LOWER  = 'a'.charCodeAt(0)
+	var UPPER  = 'A'.charCodeAt(0)
+	var PLUS_URL_SAFE = '-'.charCodeAt(0)
+	var SLASH_URL_SAFE = '_'.charCodeAt(0)
+
+	function decode (elt) {
+		var code = elt.charCodeAt(0)
+		if (code === PLUS ||
+		    code === PLUS_URL_SAFE)
+			return 62 // '+'
+		if (code === SLASH ||
+		    code === SLASH_URL_SAFE)
+			return 63 // '/'
+		if (code < NUMBER)
+			return -1 //no match
+		if (code < NUMBER + 10)
+			return code - NUMBER + 26 + 26
+		if (code < UPPER + 26)
+			return code - UPPER
+		if (code < LOWER + 26)
+			return code - LOWER + 26
+	}
+
+	function b64ToByteArray (b64) {
+		var i, j, l, tmp, placeHolders, arr
+
+		if (b64.length % 4 > 0) {
+			throw new Error('Invalid string. Length must be a multiple of 4')
+		}
+
+		// the number of equal signs (place holders)
+		// if there are two placeholders, than the two characters before it
+		// represent one byte
+		// if there is only one, then the three characters before it represent 2 bytes
+		// this is just a cheap hack to not do indexOf twice
+		var len = b64.length
+		placeHolders = '=' === b64.charAt(len - 2) ? 2 : '=' === b64.charAt(len - 1) ? 1 : 0
+
+		// base64 is 4/3 + up to two characters of the original data
+		arr = new Arr(b64.length * 3 / 4 - placeHolders)
+
+		// if there are placeholders, only get up to the last complete 4 chars
+		l = placeHolders > 0 ? b64.length - 4 : b64.length
+
+		var L = 0
+
+		function push (v) {
+			arr[L++] = v
+		}
+
+		for (i = 0, j = 0; i < l; i += 4, j += 3) {
+			tmp = (decode(b64.charAt(i)) << 18) | (decode(b64.charAt(i + 1)) << 12) | (decode(b64.charAt(i + 2)) << 6) | decode(b64.charAt(i + 3))
+			push((tmp & 0xFF0000) >> 16)
+			push((tmp & 0xFF00) >> 8)
+			push(tmp & 0xFF)
+		}
+
+		if (placeHolders === 2) {
+			tmp = (decode(b64.charAt(i)) << 2) | (decode(b64.charAt(i + 1)) >> 4)
+			push(tmp & 0xFF)
+		} else if (placeHolders === 1) {
+			tmp = (decode(b64.charAt(i)) << 10) | (decode(b64.charAt(i + 1)) << 4) | (decode(b64.charAt(i + 2)) >> 2)
+			push((tmp >> 8) & 0xFF)
+			push(tmp & 0xFF)
+		}
+
+		return arr
+	}
+
+	function uint8ToBase64 (uint8) {
+		var i,
+			extraBytes = uint8.length % 3, // if we have 1 byte left, pad 2 bytes
+			output = "",
+			temp, length
+
+		function encode (num) {
+			return lookup.charAt(num)
+		}
+
+		function tripletToBase64 (num) {
+			return encode(num >> 18 & 0x3F) + encode(num >> 12 & 0x3F) + encode(num >> 6 & 0x3F) + encode(num & 0x3F)
+		}
+
+		// go through the array every three bytes, we'll deal with trailing stuff later
+		for (i = 0, length = uint8.length - extraBytes; i < length; i += 3) {
+			temp = (uint8[i] << 16) + (uint8[i + 1] << 8) + (uint8[i + 2])
+			output += tripletToBase64(temp)
+		}
+
+		// pad the end with zeros, but make sure to not forget the extra bytes
+		switch (extraBytes) {
+			case 1:
+				temp = uint8[uint8.length - 1]
+				output += encode(temp >> 2)
+				output += encode((temp << 4) & 0x3F)
+				output += '=='
+				break
+			case 2:
+				temp = (uint8[uint8.length - 2] << 8) + (uint8[uint8.length - 1])
+				output += encode(temp >> 10)
+				output += encode((temp >> 4) & 0x3F)
+				output += encode((temp << 2) & 0x3F)
+				output += '='
+				break
+		}
+
+		return output
+	}
+
+	exports.toByteArray = b64ToByteArray
+	exports.fromByteArray = uint8ToBase64
+}(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
+
+},{}],32:[function(require,module,exports){
+exports.read = function(buffer, offset, isLE, mLen, nBytes) {
+  var e, m,
+      eLen = nBytes * 8 - mLen - 1,
+      eMax = (1 << eLen) - 1,
+      eBias = eMax >> 1,
+      nBits = -7,
+      i = isLE ? (nBytes - 1) : 0,
+      d = isLE ? -1 : 1,
+      s = buffer[offset + i];
+
+  i += d;
+
+  e = s & ((1 << (-nBits)) - 1);
+  s >>= (-nBits);
+  nBits += eLen;
+  for (; nBits > 0; e = e * 256 + buffer[offset + i], i += d, nBits -= 8);
+
+  m = e & ((1 << (-nBits)) - 1);
+  e >>= (-nBits);
+  nBits += mLen;
+  for (; nBits > 0; m = m * 256 + buffer[offset + i], i += d, nBits -= 8);
+
+  if (e === 0) {
+    e = 1 - eBias;
+  } else if (e === eMax) {
+    return m ? NaN : ((s ? -1 : 1) * Infinity);
+  } else {
+    m = m + Math.pow(2, mLen);
+    e = e - eBias;
+  }
+  return (s ? -1 : 1) * m * Math.pow(2, e - mLen);
+};
+
+exports.write = function(buffer, value, offset, isLE, mLen, nBytes) {
+  var e, m, c,
+      eLen = nBytes * 8 - mLen - 1,
+      eMax = (1 << eLen) - 1,
+      eBias = eMax >> 1,
+      rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0),
+      i = isLE ? 0 : (nBytes - 1),
+      d = isLE ? 1 : -1,
+      s = value < 0 || (value === 0 && 1 / value < 0) ? 1 : 0;
+
+  value = Math.abs(value);
+
+  if (isNaN(value) || value === Infinity) {
+    m = isNaN(value) ? 1 : 0;
+    e = eMax;
+  } else {
+    e = Math.floor(Math.log(value) / Math.LN2);
+    if (value * (c = Math.pow(2, -e)) < 1) {
+      e--;
+      c *= 2;
+    }
+    if (e + eBias >= 1) {
+      value += rt / c;
+    } else {
+      value += rt * Math.pow(2, 1 - eBias);
+    }
+    if (value * c >= 2) {
+      e++;
+      c /= 2;
+    }
+
+    if (e + eBias >= eMax) {
+      m = 0;
+      e = eMax;
+    } else if (e + eBias >= 1) {
+      m = (value * c - 1) * Math.pow(2, mLen);
+      e = e + eBias;
+    } else {
+      m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen);
+      e = 0;
+    }
+  }
+
+  for (; mLen >= 8; buffer[offset + i] = m & 0xff, i += d, m /= 256, mLen -= 8);
+
+  e = (e << mLen) | m;
+  eLen += mLen;
+  for (; eLen > 0; buffer[offset + i] = e & 0xff, i += d, e /= 256, eLen -= 8);
+
+  buffer[offset + i - d] |= s * 128;
+};
+
+},{}],33:[function(require,module,exports){
+
+/**
+ * isArray
+ */
+
+var isArray = Array.isArray;
+
+/**
+ * toString
+ */
+
+var str = Object.prototype.toString;
+
+/**
+ * Whether or not the given `val`
+ * is an array.
+ *
+ * example:
+ *
+ *        isArray([]);
+ *        // > true
+ *        isArray(arguments);
+ *        // > false
+ *        isArray('');
+ *        // > false
+ *
+ * @param {mixed} val
+ * @return {bool}
+ */
+
+module.exports = isArray || function (val) {
+  return !! val && '[object Array]' == str.call(val);
+};
+
+},{}],34:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2251,7 +4161,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],27:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -4927,7 +6837,7 @@ process.umask = function() { return 0; };
 
 }));
 
-},{}],28:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 (function (process,global){
 /*!
  * @overview es6-promise - a tiny implementation of Promises/A+.
@@ -5890,7 +7800,204 @@ process.umask = function() { return 0; };
     }
 }).call(this);
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":26}],29:[function(require,module,exports){
+},{"_process":34}],37:[function(require,module,exports){
+(function (global){
+/*
+ * $Id: base64.js,v 2.15 2014/04/05 12:58:57 dankogai Exp dankogai $
+ *
+ *  Licensed under the MIT license.
+ *    http://opensource.org/licenses/mit-license
+ *
+ *  References:
+ *    http://en.wikipedia.org/wiki/Base64
+ */
+
+(function(global) {
+    'use strict';
+    // existing version for noConflict()
+    var _Base64 = global.Base64;
+    var version = "2.1.7";
+    // if node.js, we use Buffer
+    var buffer;
+    if (typeof module !== 'undefined' && module.exports) {
+        buffer = require('buffer').Buffer;
+    }
+    // constants
+    var b64chars
+        = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    var b64tab = function(bin) {
+        var t = {};
+        for (var i = 0, l = bin.length; i < l; i++) t[bin.charAt(i)] = i;
+        return t;
+    }(b64chars);
+    var fromCharCode = String.fromCharCode;
+    // encoder stuff
+    var cb_utob = function(c) {
+        if (c.length < 2) {
+            var cc = c.charCodeAt(0);
+            return cc < 0x80 ? c
+                : cc < 0x800 ? (fromCharCode(0xc0 | (cc >>> 6))
+                                + fromCharCode(0x80 | (cc & 0x3f)))
+                : (fromCharCode(0xe0 | ((cc >>> 12) & 0x0f))
+                   + fromCharCode(0x80 | ((cc >>>  6) & 0x3f))
+                   + fromCharCode(0x80 | ( cc         & 0x3f)));
+        } else {
+            var cc = 0x10000
+                + (c.charCodeAt(0) - 0xD800) * 0x400
+                + (c.charCodeAt(1) - 0xDC00);
+            return (fromCharCode(0xf0 | ((cc >>> 18) & 0x07))
+                    + fromCharCode(0x80 | ((cc >>> 12) & 0x3f))
+                    + fromCharCode(0x80 | ((cc >>>  6) & 0x3f))
+                    + fromCharCode(0x80 | ( cc         & 0x3f)));
+        }
+    };
+    var re_utob = /[\uD800-\uDBFF][\uDC00-\uDFFFF]|[^\x00-\x7F]/g;
+    var utob = function(u) {
+        return u.replace(re_utob, cb_utob);
+    };
+    var cb_encode = function(ccc) {
+        var padlen = [0, 2, 1][ccc.length % 3],
+        ord = ccc.charCodeAt(0) << 16
+            | ((ccc.length > 1 ? ccc.charCodeAt(1) : 0) << 8)
+            | ((ccc.length > 2 ? ccc.charCodeAt(2) : 0)),
+        chars = [
+            b64chars.charAt( ord >>> 18),
+            b64chars.charAt((ord >>> 12) & 63),
+            padlen >= 2 ? '=' : b64chars.charAt((ord >>> 6) & 63),
+            padlen >= 1 ? '=' : b64chars.charAt(ord & 63)
+        ];
+        return chars.join('');
+    };
+    var btoa = global.btoa ? function(b) {
+        return global.btoa(b);
+    } : function(b) {
+        return b.replace(/[\s\S]{1,3}/g, cb_encode);
+    };
+    var _encode = buffer ? function (u) {
+        return (u.constructor === buffer.constructor ? u : new buffer(u))
+        .toString('base64') 
+    } 
+    : function (u) { return btoa(utob(u)) }
+    ;
+    var encode = function(u, urisafe) {
+        return !urisafe 
+            ? _encode(String(u))
+            : _encode(String(u)).replace(/[+\/]/g, function(m0) {
+                return m0 == '+' ? '-' : '_';
+            }).replace(/=/g, '');
+    };
+    var encodeURI = function(u) { return encode(u, true) };
+    // decoder stuff
+    var re_btou = new RegExp([
+        '[\xC0-\xDF][\x80-\xBF]',
+        '[\xE0-\xEF][\x80-\xBF]{2}',
+        '[\xF0-\xF7][\x80-\xBF]{3}'
+    ].join('|'), 'g');
+    var cb_btou = function(cccc) {
+        switch(cccc.length) {
+        case 4:
+            var cp = ((0x07 & cccc.charCodeAt(0)) << 18)
+                |    ((0x3f & cccc.charCodeAt(1)) << 12)
+                |    ((0x3f & cccc.charCodeAt(2)) <<  6)
+                |     (0x3f & cccc.charCodeAt(3)),
+            offset = cp - 0x10000;
+            return (fromCharCode((offset  >>> 10) + 0xD800)
+                    + fromCharCode((offset & 0x3FF) + 0xDC00));
+        case 3:
+            return fromCharCode(
+                ((0x0f & cccc.charCodeAt(0)) << 12)
+                    | ((0x3f & cccc.charCodeAt(1)) << 6)
+                    |  (0x3f & cccc.charCodeAt(2))
+            );
+        default:
+            return  fromCharCode(
+                ((0x1f & cccc.charCodeAt(0)) << 6)
+                    |  (0x3f & cccc.charCodeAt(1))
+            );
+        }
+    };
+    var btou = function(b) {
+        return b.replace(re_btou, cb_btou);
+    };
+    var cb_decode = function(cccc) {
+        var len = cccc.length,
+        padlen = len % 4,
+        n = (len > 0 ? b64tab[cccc.charAt(0)] << 18 : 0)
+            | (len > 1 ? b64tab[cccc.charAt(1)] << 12 : 0)
+            | (len > 2 ? b64tab[cccc.charAt(2)] <<  6 : 0)
+            | (len > 3 ? b64tab[cccc.charAt(3)]       : 0),
+        chars = [
+            fromCharCode( n >>> 16),
+            fromCharCode((n >>>  8) & 0xff),
+            fromCharCode( n         & 0xff)
+        ];
+        chars.length -= [0, 0, 2, 1][padlen];
+        return chars.join('');
+    };
+    var atob = global.atob ? function(a) {
+        return global.atob(a);
+    } : function(a){
+        return a.replace(/[\s\S]{1,4}/g, cb_decode);
+    };
+    var _decode = buffer ? function(a) {
+        return (a.constructor === buffer.constructor
+                ? a : new buffer(a, 'base64')).toString();
+    }
+    : function(a) { return btou(atob(a)) };
+    var decode = function(a){
+        return _decode(
+            String(a).replace(/[-_]/g, function(m0) { return m0 == '-' ? '+' : '/' })
+                .replace(/[^A-Za-z0-9\+\/]/g, '')
+        );
+    };
+    var noConflict = function() {
+        var Base64 = global.Base64;
+        global.Base64 = _Base64;
+        return Base64;
+    };
+    // export Base64
+    global.Base64 = {
+        VERSION: version,
+        atob: atob,
+        btoa: btoa,
+        fromBase64: decode,
+        toBase64: encode,
+        utob: utob,
+        encode: encode,
+        encodeURI: encodeURI,
+        btou: btou,
+        decode: decode,
+        noConflict: noConflict
+    };
+    // if ES5 is available, make Base64.extendString() available
+    if (typeof Object.defineProperty === 'function') {
+        var noEnum = function(v){
+            return {value:v,enumerable:false,writable:true,configurable:true};
+        };
+        global.Base64.extendString = function () {
+            Object.defineProperty(
+                String.prototype, 'fromBase64', noEnum(function () {
+                    return decode(this)
+                }));
+            Object.defineProperty(
+                String.prototype, 'toBase64', noEnum(function (urisafe) {
+                    return encode(this, urisafe)
+                }));
+            Object.defineProperty(
+                String.prototype, 'toBase64URI', noEnum(function () {
+                    return encode(this, true)
+                }));
+        };
+    }
+    // that's it!
+})(this);
+
+if (this['Meteor']) {
+    Base64 = global.Base64; // for normal export in Meteor.js
+}
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"buffer":30}],38:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -12679,7 +14786,7 @@ process.umask = function() { return 0; };
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],30:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 (function (global){
 //! moment.js
 //! version : 2.8.4
@@ -15619,7 +17726,7 @@ process.umask = function() { return 0; };
 }).call(this);
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],31:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 /*
 	ractive.js v0.6.1
 	2014-10-25 - commit 3a576eb3 

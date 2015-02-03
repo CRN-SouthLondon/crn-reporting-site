@@ -585,6 +585,18 @@ div.spacer-row-sm {
   height: 5px;
 }
 
+.ct-chart .ct-series.ct-series-a .ct-bar {
+  stroke: #004080;
+}
+
+.ct-chart .ct-series.ct-series-b .ct-bar {
+  stroke: #800000;
+}
+
+.ct-chart .ct-series.ct-series-c .ct-bar {
+  stroke: #666666;
+}
+
 .data-table th,
 .data-table td {
   font-size: 9pt;
