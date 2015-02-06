@@ -6,6 +6,7 @@
       author="Chris Devereux" 
       author_email="chris.devereux@nihr.ac.uk">
         <Locale lang="en" country="uk" />
+        <Require feature="dynamic-height"/>
   </ModulePrefs>
   
   <Content type="html" href='https://chrisdevereux.github.io/crn-reporting-site/reporting.html'/>

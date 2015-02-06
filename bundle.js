@@ -45,8 +45,9 @@ window.onload = function () {
         var query = decodeURIComponent(window.location.search.replace(/^\?/, ''));
         return _.findWhere(reports, function (report) { return report.title === query; });
     }
+    var root;
     if (debugReport()) {
-        new Ractive({
+        root = new Ractive({
             el: '#main',
             template: '<Report></Report>',
             components: {
@@ -55,11 +56,16 @@ window.onload = function () {
         });
     }
     else {
-        new ReportPicker({
+        root = new ReportPicker({
             el: '#main',
             reports: reports
         });
     }
+    root.on('render', function () {
+        var evtListener = window['handleAppContentSizeChanged'];
+        if (evtListener)
+            evtListener();
+    });
 };
 
 
