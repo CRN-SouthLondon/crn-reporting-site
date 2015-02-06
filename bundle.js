@@ -4,9 +4,15 @@ var Ractive = require('ractive');
 var _ = require('lodash');
 var ReportPicker = require('../lib/ui/report-picker');
 var config = require('../lib/reports/config');
+var cache = {};
 var http = function (url, body, callback) {
     var Request = require('browser-request');
+    if (cache[url]) {
+        callback(cache[url], null);
+    }
     Request.get(url, function (err, response, body) {
+        if (body)
+            cache[url] = body;
         callback(body, err);
     });
 };
@@ -45,9 +51,8 @@ window.onload = function () {
         var query = decodeURIComponent(window.location.search.replace(/^\?/, ''));
         return _.findWhere(reports, function (report) { return report.title === query; });
     }
-    var root;
     if (debugReport()) {
-        root = new Ractive({
+        new Ractive({
             el: '#main',
             template: '<Report></Report>',
             components: {
@@ -56,17 +61,11 @@ window.onload = function () {
         });
     }
     else {
-        root = new ReportPicker({
+        new ReportPicker({
             el: '#main',
             reports: reports
         });
     }
-    root.on('render', function () {
-        var evtListener = window['handleAppContentSizeChanged'];
-        console.log('rendered');
-        if (evtListener)
-            evtListener();
-    });
 };
 
 
@@ -708,6 +707,7 @@ function notEqual(column, value) {
 }
 exports.notEqual = notEqual;
 function oneOf(column, values) {
+    console.log(column, values.join(','));
     return function (row) { return _.contains(values, row[column]); };
 }
 exports.oneOf = oneOf;
@@ -1169,7 +1169,6 @@ function timeTargetReportCommercialClosed(opts) {
         granularity: 0 /* annual */
     });
     return Rows.sequence(timeTargetData({
-        drillDownQuery: opts.drillDownQuery,
         inclusionFilters: [
             Fusion.greaterThanOrEqual('PortfolioQualificationDate', new Date('2010-4-1')),
             Fusion.greaterThanOrEqual('Local Start Date', new Date('2010-4-1')),
@@ -1194,7 +1193,6 @@ function timeTargetReportCommercialOpen(opts) {
         granularity: 0 /* annual */
     });
     return Rows.sequence(timeTargetData({
-        drillDownQuery: opts.drillDownQuery,
         inclusionFilters: [
             Fusion.greaterThanOrEqual('PortfolioQualificationDate', new Date('2010-4-1')),
             Fusion.greaterThanOrEqual('Local Start Date', new Date('2010-4-1')),
@@ -1214,7 +1212,6 @@ function timeTargetReportNoncommercialClosed(opts) {
         granularity: 0 /* annual */
     });
     return Rows.sequence(timeTargetData({
-        drillDownQuery: opts.drillDownQuery,
         inclusionFilters: [
             Fusion.greaterThan('PortfolioQualificationDate', new Date('2010-4-1')),
             Fusion.greaterThanOrEqual('Local Start Date', new Date('2010-4-1')),
@@ -1240,7 +1237,6 @@ function timeTargetReportNoncommercialOpen(opts) {
         granularity: 0 /* annual */
     });
     return Rows.sequence(timeTargetData({
-        drillDownQuery: opts.drillDownQuery,
         inclusionFilters: [
             Fusion.greaterThan('PortfolioQualificationDate', new Date('2010-4-1')),
             Fusion.greaterThanOrEqual('Local Start Date', new Date('2010-4-1')),
@@ -1255,37 +1251,41 @@ function timeTargetReportNoncommercialOpen(opts) {
 }
 exports.timeTargetReportNoncommercialOpen = timeTargetReportNoncommercialOpen;
 function timeTargetReport(opts) {
-    return Rows.union([
+    return Rows.sequence(Rows.union([
         timeTargetReportNoncommercialClosed(opts),
         timeTargetReportCommercialClosed(opts),
         timeTargetReportNoncommercialOpen(opts),
         timeTargetReportCommercialOpen(opts)
-    ]);
+    ]), Rows.filter(Fusion.all(_.compact(opts.drillDownQuery))));
 }
 exports.timeTargetReport = timeTargetReport;
 function timeTargetData(opts) {
     var inclusionFilters = opts.inclusionFilters.concat([
         Fusion.equals('PIC', 0),
     ]);
-    var combinedFilter = Fusion.all(opts.drillDownQuery.concat(inclusionFilters));
     return Rows.sequence(Fusion.select({
         columns: {
-            StudyTitle: 0 /* string */,
-            'id-CSP': 0 /* string */,
+            'Short Title:': 0 /* string */,
+            'CLRN ID:': 0 /* string */,
             'id-UKCRN': 0 /* string */,
+            'NIHR Port No': 0 /* string */,
             MainReportingDivision: 0 /* string */,
             MemberOrg: 0 /* string */,
             MainSpecialty: 0 /* string */,
             ActiveStatus: 0 /* string */,
+            Banding: 0 /* string */,
+            CommercialStudy: 0 /* string */,
             LocalStudyID: 0 /* string */,
             GroupedTrustName: 0 /* string */,
             'Local Start Date': 2 /* date */,
             'Expected Study End Date': 2 /* date */,
             'Actual Study End Date': 2 /* date */,
-            'Recruitment Target': 1 /* number */
+            'Recruitment Target': 1 /* number */,
+            'CIName': 0 /* string */,
+            'CIEmail': 0 /* string */
         },
         from: config.studyTable,
-        where: combinedFilter
+        where: Fusion.all(inclusionFilters)
     }), Rows.setColumns({
         ActualStudyEndDate: Rows.field('Actual Study End Date'),
         LocalStartDate: Rows.field('Local Start Date'),
@@ -1295,7 +1295,7 @@ function timeTargetData(opts) {
         with: Fusion.selectSum({
             columns: ['Recruitment'],
             from: config.recruitmentTable,
-            where: combinedFilter,
+            where: Fusion.all(inclusionFilters),
             groupBy: { LocalStudyID: 0 /* string */ }
         }),
         as: 'Recruitment',
@@ -1614,7 +1614,7 @@ var Ractive = require('ractive');
 
 var _ = require('lodash');
 var ReportPicker = Ractive.extend({
-    template: "<div class='report-picker container-fluid'>\n\t<div class='col-xs-2 report-picker report-picker-nav'>\n\t\t<div role='navigation' class='report-picker row'>\n\t\t\t<ul class='nav nav-pills nav-stacked'>\n\t\t\t\t{{#reports}}\n\t\t\t\t\t<li role='presentation' class='report-picker-button {{ (this === selection) ? 'active' : '' }}'>\n\t\t\t\t\t\t<a href='#' on-click='handleReportClicked(this)'>{{title}}</a>\n\t\t\t\t\t</li>\n\t\t\t\t{{/}}\n\t\t\t</ul>\n\t\t</div>\n\t</div>\n\t<div class='col-xs-10 report-picker-detail'>\n\t\t{{>detailView}}\n\t</div>\n</div>\n",
+    template: "<div class='report-picker container-fluid'>\n\t<div class='col-xs-5 col-sm-3 col-md-2 report-picker report-picker-nav'>\n\t\t<div role='navigation' class='report-picker row'>\n\t\t\t<ul class='nav nav-pills nav-stacked'>\n\t\t\t\t{{#reports}}\n\t\t\t\t\t<li role='presentation' class='report-picker-button {{ (this === selection) ? 'active' : '' }}'>\n\t\t\t\t\t\t<a href='#' on-click='handleReportClicked(this)'>{{title}}</a>\n\t\t\t\t\t</li>\n\t\t\t\t{{/}}\n\t\t\t</ul>\n\t\t</div>\n\t</div>\n\t<div class='col-xs-7 col-sm-9 col-md-10 report-picker-detail'>\n\t\t{{>detailView}}\n\t</div>\n</div>\n",
     onconstruct: function (options) {
         options.components = options.components || {};
         var detailMarkup = "";
@@ -1653,7 +1653,7 @@ var _ = require('lodash');
 var csv = require('../output/csv');
 var download = require('../output/download');
 var Table = Ractive.extend({
-    template: "<div class='table-responsive'>\n\t{{# !!filename && data && data.length > 15 }}\n\t\t<Button enabled={{data.length > 0}} size='xs' icon='save' on-action='handleDownloadClicked' label='Download'></Button>\n\t{{/}}\n\n\t<table class='table data-table'>\n\t\t<thead>\n\t\t\t<tr>\n\t\t\t\t{{# columns }}\n\t\t\t\t\t<th class={{ (this.key === sortColumn) ? 'table-sort-column' : '' }}>\n\t\t\t\t\t\t<a role='button' href='#' on-click='handleHeaderClicked(key)'>{{title}}</a>\n\t\t\t\t\t</th>\n\t\t\t\t{{/}}\n\t\t\t</tr>\n\t\t</thead>\n\n\t\t<tbody>\n\t\t\t{{# sortedRows(sortColumn, data, descending) }}\n\t\t\t\t<tr class={{ rowColumnClass(ragColumn, this) }}>\n\t\t\t\t\t{{# cells(this, columns) }}\n\t\t\t\t\t\t<td>\n\t\t\t\t\t\t\t{{this}}\n\t\t\t\t\t\t</td>\n\t\t\t\t\t{{/}}\n\t\t\t\t</tr>\n\t\t\t{{/}}\n\t\t</tbody>\n\t</table>\n\n\t{{# !!filename }}\n\t\t<Button enabled={{data.length > 0}} size='xs' icon='save' on-action='handleDownloadClicked' label='Download'></Button>\n\t{{/}}\n</div>\n",
+    template: "<div>\n\t{{# !!filename && data && data.length > 15 }}\n\t\t<Button enabled={{data.length > 0}} size='xs' icon='save' on-action='handleDownloadClicked' label='Download'></Button>\n\t{{/}}\n\n\t<table class='table data-table'>\n\t\t<thead>\n\t\t\t<tr>\n\t\t\t\t{{# columns }}\n\t\t\t\t\t<th class={{ (this.key === sortColumn) ? 'table-sort-column' : '' }}>\n\t\t\t\t\t\t<a role='button' href='#' on-click='handleHeaderClicked(key)'>{{title}}</a>\n\t\t\t\t\t</th>\n\t\t\t\t{{/}}\n\t\t\t</tr>\n\t\t</thead>\n\n\t\t<tbody>\n\t\t\t{{# sortedRows(sortColumn, data, descending) }}\n\t\t\t\t<tr class={{ rowColumnClass(ragColumn, this) }}>\n\t\t\t\t\t{{# cells(this, columns) }}\n\t\t\t\t\t\t<td>\n\t\t\t\t\t\t\t{{this}}\n\t\t\t\t\t\t</td>\n\t\t\t\t\t{{/}}\n\t\t\t\t</tr>\n\t\t\t{{/}}\n\t\t</tbody>\n\t</table>\n\n\t{{# !!filename }}\n\t\t<Button enabled={{data.length > 0}} size='xs' icon='save' on-action='handleDownloadClicked' label='Download'></Button>\n\t{{/}}\n</div>\n",
     onrender: function () {
         var _this = this;
         var component = this;
@@ -1708,7 +1708,7 @@ var timetarget = require('../lib/reports/time-target');
 var recruitment = require('../lib/reports/recruitment');
 var Rows = require('../lib/process-rows/rows');
 var DashboardView = Ractive.extend({
-    template: "<div class='row dashboard-kpi-row'>\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tNetwork-Wide Recruitment\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<Chart type='Line' data={{hlo1}} height={{200}}></Chart>\n\t</div>\n\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tTime &amp; Target\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2a.red}} amber={{hlo2a.amber}} green={{hlo2a.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2b.red}} amber={{hlo2b.amber}} green={{hlo2b.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of open commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2aOpen.red}} amber={{hlo2aOpen.amber}} green={{hlo2aOpen.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of open non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2bOpen.red}} amber={{hlo2bOpen.amber}} green={{hlo2bOpen.green}}></RAGProportions>\n\t\t</div>\n\t</div>\n</div>\n",
+    template: "<div class='row alert alert-warning alert-container'>\n\t<div class='col-xs-12'>\n\t\t<p>\n\t\t\tThis is an initial release of the reporting tool. Some studies may be missing and performance metrics may diverge slightly from other reports.\n\t\t</p>\n\n\t\t<p>\n\t\t\tPlease <a href='mailto:christopher.devereux@gstt.nhs.uk' class='alert-link'>let us know</a> about missing studies or incorrect data, or any other feedback, comments &amp; suggestions.\n\t\t</p>\n\t</div>\n</div>\n\n<div class='row spacer-row-sm'>\n</div>\n\n<div class='row dashboard-kpi-row'>\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tNetwork-Wide Recruitment\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<Chart type='Line' data={{hlo1}} height={{200}}></Chart>\n\t</div>\n\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tTime &amp; Target\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2a.red}} amber={{hlo2a.amber}} green={{hlo2a.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2b.red}} amber={{hlo2b.amber}} green={{hlo2b.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of open commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2aOpen.red}} amber={{hlo2aOpen.amber}} green={{hlo2aOpen.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of open non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2bOpen.red}} amber={{hlo2bOpen.amber}} green={{hlo2bOpen.green}}></RAGProportions>\n\t\t</div>\n\t</div>\n</div>\n",
     onrender: function () {
         var hlo1 = query.transform(query.run(query.constant(null), function () {
             return recruitment.performanceGraphs({
@@ -1961,13 +1961,18 @@ var datasource = require('../lib/reports/datasource');
 var timetarget = require('../lib/reports/time-target');
 var Fusion = require('../lib/fusion/fusion');
 function deNull(x) {
-    if (_.isNull(x))
+    if (_.isNull(x) || _.isNaN(x))
         return '-';
     else
         return x;
 }
 function divisionFormat(x) {
     return x.replace(/Division /, '');
+}
+function percentFormat(x) {
+    if (_.isNull(x) || _.isNaN(x))
+        return '-';
+    return String(Math.round(x * 100)) + '%';
 }
 function dateFormat(x) {
     if (_.isNull(x))
@@ -1976,29 +1981,31 @@ function dateFormat(x) {
         return moment(x).format('DD/MM/YY');
 }
 var RecruitmentView = Ractive.extend({
-    template: "<div class='row'>\n\t<div class='col-xs-12'>\n\t\t<form class='form-inline'>\n\t\t\t<ButtonGroup>\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Banding: {{formatPicked(banding)}}' options={{bandingOptions}} selection={{banding}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Commercial: {{formatPicked(commercial)}}' options={{commercialOptions}} selection={{commercial}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Trusts: {{formatPicked(trusts)}}' options={{trustOptions}} selection={{trusts}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Divisions: {{formatPicked(divisions)}}' options={{divisionOptions}} selection={{divisions}}></Dropdown>\n\n\t\t\t\t<Dropdown size='sm' multiple={{true}} label='Specialties: {{formatPicked(specialties)}}' options={{specialtyOptions}} selection={{specialties}}></Dropdown>\n\t\t\t</ButtonGroup>\n\n\t\t\t&nbsp;\n\t\t\t\t\n\t\t\t<Field size='sm' label='Study Title' value={{title}}></Field>\n\n\t\t\t&nbsp;\n\n\t\t\t<Field size='sm' label='Study ID' value={{studyID}}></Field>\n\n\t\t\t&nbsp;\n\n\t\t\t<Field size='sm' label='CSP ID' value={{cspID}}></Field>\n\t\t</form>\n\t</div>\n</div>\n\n<div class='row spacer-row'></div>\n\n<div class='row'>\n\t<div class='col-xs-12'>\n\t\t<Table filename='Time &amp; Target.csv' data={{reportData}} columns={{tableColumns}} ragColumn='RAG'></Table>\n\t</div>\n</div>\n",
+    template: "<div class='row'>\n\t<div class='col-xs-12'>\n\t\t<ButtonGroup>\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Banding: {{formatPicked(banding)}}' options={{bandingOptions}} selection={{banding}}></Dropdown>\n\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Commercial: {{formatPicked(commercial)}}' options={{commercialOptions}} selection={{commercial}}></Dropdown>\n\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Trusts: {{formatPicked(trusts)}}' options={{trustOptions}} selection={{trusts}}></Dropdown>\n\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Divisions: {{formatPicked(divisions)}}' options={{divisionOptions}} selection={{divisions}}></Dropdown>\n\n\t\t\t<Dropdown size='sm' multiple={{true}} label='Specialties: {{formatPicked(specialties)}}' options={{specialtyOptions}} selection={{specialties}}></Dropdown>\n\n\t\t\t<Dropdown size='sm' multiple={{true}} label='RAG: {{formatPicked(rag)}}' options={{ragOptions}} selection={{rag}}></Dropdown>\n\t\t</ButtonGroup>\n\t</div>\n</div>\n\n<div class='row spacer-row-sm'></div>\n\n<div class='row'>\n\t<div class='col-xs-12'>\n\t\t<form class='form-inline'>\n\t\t\t<Field size='sm' label='Study Title' value={{title}}></Field>\n\n\t\t\t&nbsp;\n\n\t\t\t<Field size='sm' label='Study ID' value={{studyID}}></Field>\n\n\t\t\t&nbsp;\n\n\t\t\t<Field size='sm' label='CSP ID' value={{cspID}}></Field>\n\t\t</form>\n\t</div>\n</div>\n\n<div class='row spacer-row-sm'></div>\n\n<div class='row'>\n\t<div class='col-xs-12'>\n\t\t<Table filename='Time &amp; Target.csv' data={{reportData}} columns={{tableColumns}} ragColumn='RAG'></Table>\n\t</div>\n</div>\n",
     onrender: function () {
         query.present(query.run(query.constant(null), function () { return datasource.allTrusts(); }), this, 'trustOptions');
         query.present(query.run(query.constant(null), function () { return datasource.allDivisions(); }), this, 'divisionOptions');
         query.present(query.run(query.constant(null), function () { return datasource.allSpecialties(); }), this, 'specialtyOptions');
         query.present(query.constant(['Commercial', 'Non-Commercial']), this, 'commercialOptions');
         query.present(query.constant(['Interventional/Both', 'Observational', 'Large']), this, 'bandingOptions');
+        query.present(query.constant(['red', 'amber', 'green', 'incomplete info']), this, 'ragOptions');
         var request = query.merge({
             GroupedTrustName: query.observe(this, 'trusts'),
             CommercialStudy: query.observe(this, 'commercial'),
             Banding: query.observe(this, 'banding'),
             MainReportingDivision: query.observe(this, 'divisions'),
             MainSpecialty: query.observe(this, 'specialties'),
-            StudyTitle: query.observe(this, 'title'),
-            'id-CSP': query.observe(this, 'cspID'),
+            'Short Title:': query.observe(this, 'title'),
+            RAG: query.observe(this, 'rag'),
+            'CLRN ID:': query.observe(this, 'cspID'),
             'NIHR Port No': query.observe(this, 'studyID')
         });
         var result = query.run(request, function (req) {
             var filters = _.map(req, function (val, key) {
                 if (val.length > 0) {
-                    if (key === 'StudyTitle')
+                    if (key === 'Short Title:')
                         return Fusion.like(key, val);
-                    else if (key === 'id-CSP')
+                    else if (key === 'CLRN ID:')
                         return Fusion.like(key, val);
                     else if (key === 'NIHR Port No')
                         return Fusion.equals(key, val);
@@ -2019,6 +2026,7 @@ var RecruitmentView = Ractive.extend({
         banding: [],
         divisions: [],
         specialties: [],
+        rag: [],
         title: '',
         cspID: '',
         studyID: '',
@@ -2027,6 +2035,7 @@ var RecruitmentView = Ractive.extend({
         commercialOptions: [],
         trustOptions: [],
         bandingOptions: [],
+        ragOptions: [],
         formatPicked: function (picked) {
             if (!picked || picked.length === 0)
                 return 'All';
@@ -2034,19 +2043,20 @@ var RecruitmentView = Ractive.extend({
                 return picked.join(', ');
         },
         tableColumns: [
-            { key: 'StudyTitle', title: 'Study Title', format: deNull },
-            { key: 'id-CSP', title: 'CSP ID' },
-            { key: 'NIHR Port No', title: 'Study ID' },
+            { key: 'Short Title:', title: 'Title', format: deNull },
+            { key: 'CLRN ID:', title: 'CSP ID' },
+            { key: 'NIHR Port No', title: 'NIHR ID' },
+            { key: 'Banding', title: 'Type' },
             { key: 'ActiveStatus', title: 'Status' },
             { key: 'GroupedTrustName', title: 'Trust', format: deNull },
+            { key: 'CIName', title: 'CI', format: deNull },
             { key: 'MainReportingDivision', title: 'Division', format: divisionFormat },
             { key: 'MainSpecialty', title: 'Main Specialty', format: deNull },
             { key: 'ExpectedStudyEndDate', title: 'Expected End', format: dateFormat },
             { key: 'ActualStudyEndDate', title: 'Actual End', format: dateFormat },
-            { key: 'Recruitment', title: 'Total Study Recruitment', format: deNull },
+            { key: 'Recruitment', title: 'Total Recruitment', format: deNull },
             { key: 'RecruitmentTarget', title: 'Target Recruitment', format: deNull },
-            { key: 'ExpectedDuration', title: 'Expected Duration', format: deNull },
-            { key: 'ActualDuration', title: 'Actual Duration', format: deNull },
+            { key: 'PercentTime', title: '% Elapsed', format: percentFormat },
             { key: 'RAG', title: 'RAG', format: deNull },
         ]
     }

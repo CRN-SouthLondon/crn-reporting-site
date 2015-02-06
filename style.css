@@ -580,9 +580,16 @@
   left: 0;
 }
 
-div.spacer-row,
-div.spacer-row-sm {
+div.spacer-row {
   height: 5px;
+}
+
+div.spacer-row-sm {
+  height: 3px;
+}
+
+.alert-container {
+  padding: 2px;
 }
 
 .ct-chart .ct-series.ct-series-a .ct-bar {
