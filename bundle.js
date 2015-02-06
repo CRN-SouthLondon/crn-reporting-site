@@ -63,6 +63,7 @@ window.onload = function () {
     }
     root.on('render', function () {
         var evtListener = window['handleAppContentSizeChanged'];
+        console.log('rendered');
         if (evtListener)
             evtListener();
     });
