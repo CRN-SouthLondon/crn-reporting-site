@@ -7,12 +7,11 @@ var config = require('../lib/reports/config');
 var cache = {};
 var http = function (url, body, callback) {
     var Request = require('browser-request');
-    if (cache[url]) {
-        callback(cache[url], null);
-    }
+    // if (cache[url]) {
+    // 	window.setTimeout(() => callback(cache[url], null), 0);
+    // }
     Request.get(url, function (err, response, body) {
-        if (body)
-            cache[url] = body;
+        // if (body) cache[url]  = body;
         callback(body, err);
     });
 };
