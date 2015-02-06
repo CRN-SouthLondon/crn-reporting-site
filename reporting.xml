@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Module>
+  <ModulePrefs 
+      title="CRN South London Reporting" 
+      height="200" 
+      author="Chris Devereux" 
+      author_email="chris.devereux@nihr.ac.uk">
+        <Locale lang="en" country="uk" />
+  </ModulePrefs>
+  
+  <Content type="html" href='https://chrisdevereux.github.io/crn-reporting-site/reporting-gadget.html'/>
+</Module>
