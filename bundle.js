@@ -1701,13 +1701,14 @@ module.exports = Table;
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
+var moment = require('moment');
 var query = require('../lib/ui/query');
 var calendar = require('../lib/reports/calendar');
 var timetarget = require('../lib/reports/time-target');
 var recruitment = require('../lib/reports/recruitment');
 var Rows = require('../lib/process-rows/rows');
 var DashboardView = Ractive.extend({
-    template: "<div class='row alert alert-warning alert-container'>\n\t<div class='col-xs-12'>\n\t\t<p>\n\t\t\tThis is an initial release of the reporting tool. Some studies may be missing and performance metrics may diverge slightly from other reports.\n\t\t</p>\n\n\t\t<p>\n\t\t\tPlease <a href='mailto:christopher.devereux@gstt.nhs.uk' class='alert-link'>let us know</a> about missing studies or incorrect data, or any other feedback, comments &amp; suggestions.\n\t\t</p>\n\t</div>\n</div>\n\n<div class='row spacer-row-sm'>\n</div>\n\n<div class='row dashboard-kpi-row'>\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tNetwork-Wide Recruitment\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<Chart type='Line' data={{hlo1}} height={{200}}></Chart>\n\t</div>\n\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tTime &amp; Target\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2a.red}} amber={{hlo2a.amber}} green={{hlo2a.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2b.red}} amber={{hlo2b.amber}} green={{hlo2b.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of open commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2aOpen.red}} amber={{hlo2aOpen.amber}} green={{hlo2aOpen.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of open non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2bOpen.red}} amber={{hlo2bOpen.amber}} green={{hlo2bOpen.green}}></RAGProportions>\n\t\t</div>\n\t</div>\n</div>\n",
+    template: "<div class='row alert alert-warning alert-container'>\n\t<div class='col-xs-12'>\n\t\t<p>\n\t\t\tThis is an initial release of the reporting tool. Some studies may be missing and performance metrics may diverge slightly from other reports.\n\t\t</p>\n\n\t\t<p>\n\t\t\tPlease <a target=\"_top\" href='mailto:christopher.devereux@gstt.nhs.uk' class='alert-link'>let us know</a> about missing studies or incorrect data, or any other feedback, comments &amp; suggestions.\n\t\t</p>\n\t</div>\n</div>\n\n<div class='row spacer-row-sm'>\n</div>\n\n<div class='row dashboard-kpi-row'>\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tNetwork-Wide Recruitment\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<Chart type='Line' data={{hlo1}} height={{200}}></Chart>\n\t</div>\n\n\t<div class='col-xs-6'>\n\t\t<div class='dashboard-metric-header'>\n\t\t\tTime &amp; Target\n\t\t</div>\n\n\t\t<div class='spacer-row'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2a.red}} amber={{hlo2a.amber}} green={{hlo2a.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of closed non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2b.red}} amber={{hlo2b.amber}} green={{hlo2b.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of open commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2aOpen.red}} amber={{hlo2aOpen.amber}} green={{hlo2aOpen.green}}></RAGProportions>\n\t\t</div>\n\n\t\t<div class='spacer-row-sm'></div>\n\n\t\t<div class='dashboard-metric'>\n\t\t\tProportion of open non-commercial studies recruiting to time &amp; target:\n\n\t\t\t<RAGProportions red={{hlo2bOpen.red}} amber={{hlo2bOpen.amber}} green={{hlo2bOpen.green}}></RAGProportions>\n\t\t</div>\n\t</div>\n</div>\n",
     onrender: function () {
         var hlo1 = query.transform(query.run(query.constant(null), function () {
             return recruitment.performanceGraphs({
@@ -1719,7 +1720,7 @@ var DashboardView = Ractive.extend({
                     granularity: 0 /* annual */,
                     banded: false,
                     weighted: false,
-                    startPeriod: new Date('2012-2-1'),
+                    startPeriod: moment().subtract(2, 'years').toDate(),
                     duration: 3
                 }
             });
@@ -1746,7 +1747,7 @@ var DashboardView = Ractive.extend({
 module.exports = DashboardView;
 
 
-},{"../lib/process-rows/rows":6,"../lib/reports/calendar":7,"../lib/reports/recruitment":10,"../lib/reports/time-target":12,"../lib/ui/query":19,"ractive":40}],25:[function(require,module,exports){
+},{"../lib/process-rows/rows":6,"../lib/reports/calendar":7,"../lib/reports/recruitment":10,"../lib/reports/time-target":12,"../lib/ui/query":19,"moment":39,"ractive":40}],25:[function(require,module,exports){
 /// <reference path="../references.d.ts" />
 var Ractive = require('ractive');
 
@@ -1800,6 +1801,7 @@ module.exports = RecruitmentBenchmark;
 var Ractive = require('ractive');
 
 var _ = require('lodash');
+var moment = require('moment');
 var query = require('../lib/ui/query');
 var calendar = require('../lib/reports/calendar');
 var recruitment = require('../lib/reports/recruitment');
@@ -1814,7 +1816,7 @@ var RecruitmentView = Ractive.extend({
                 yearType: query.observe(this, 'yearType'),
                 weighted: query.observe(this, 'weighted'),
                 banded: query.observe(this, 'banded'),
-                startPeriod: query.constant(new Date('2012-1-1')),
+                startPeriod: query.constant(moment().subtract(2, 'years').toDate()),
                 duration: query.constant(3)
             })
         });
@@ -1860,7 +1862,7 @@ var RecruitmentView = Ractive.extend({
 module.exports = RecruitmentView;
 
 
-},{"../lib/reports/calendar":7,"../lib/reports/recruitment":10,"../lib/ui/query":19,"./recruitment-components/benchmark-chart":25,"lodash":38,"ractive":40}],27:[function(require,module,exports){
+},{"../lib/reports/calendar":7,"../lib/reports/recruitment":10,"../lib/ui/query":19,"./recruitment-components/benchmark-chart":25,"lodash":38,"moment":39,"ractive":40}],27:[function(require,module,exports){
 /// <reference path="./references.d.ts" />
 var Ractive = require('ractive');
 
