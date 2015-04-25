@@ -9,5 +9,5 @@
         <Require feature="dynamic-height"/>
   </ModulePrefs>
   
-  <Content type="html" href='https://crn-southlondon.github.io/crn-reporting-site/reporting.html'/>
+  <Content type="html" href='https://crn-southlondon.github.io/crn-reporting-site/gadget.html'/>
 </Module>
